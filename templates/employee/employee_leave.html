@@ -82,11 +82,10 @@
 
 /* Entrance Animation */
 .reveal {
-  opacity: 0;
-  transform: translateY(12px);
   animation: slideUp 0.6s ease forwards;
 }
 @keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
@@ -150,7 +149,12 @@
             <div class="flex flex-col text-center min-w-[60px]">
                 <span class="text-[10px] font-bold text-slate-400 uppercase">Duration</span>
                 <span class="text-sm font-extrabold text-slate-700">
-                    {% if l.start_date == l.end_date %}1 Day{% else %}Multi{% endif %}
+                    {% if l.start_date and l.end_date %}
+                      {% set days = (l.end_date - l.start_date).days + 1 %}
+                      {{ days }} Day{{ '' if days == 1 else 's' }}
+                    {% else %}
+                      N/A
+                    {% endif %}
                 </span>
             </div>
             

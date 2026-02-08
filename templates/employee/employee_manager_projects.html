@@ -198,9 +198,17 @@ body {
                data-project-status="{{ project.status }}">
             <div class="flex justify-between items-start mb-2">
               <span class="font-bold text-slate-900">{{ project.name }}</span>
-              <span class="project-status {% if project.status == 'active' %}status-active{% elif project.status == 'completed' %}status-completed{% else %}status-pending{% endif %}">
-                {{ project.status }}
-              </span>
+              <div class="flex items-center gap-2">
+                <span class="project-status {% if project.status == 'active' %}status-active{% elif project.status == 'completed' %}status-completed{% else %}status-pending{% endif %}">
+                  {{ project.status }}
+                </span>
+                <form action="/manager/projects/delete" method="POST" onsubmit="return confirm('Remove project {{ project.name }}?')" class="project-remove-form">
+                  <input type="hidden" name="project_id" value="{{ project.id }}">
+                  <button type="submit" class="text-slate-300 hover:text-red-600" aria-label="Remove project {{ project.name }}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
             </div>
             <div class="flex gap-4">
                <span class="label-mono text-[10px]">Tasks: <span id="tasks-{{ project.id }}" class="text-slate-900">-</span></span>
@@ -274,10 +282,23 @@ let allProjects = [];
 let selectedProjectId = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Set up project card click handlers
+  // Set up project card click/touch handlers
   document.querySelectorAll('.project-option').forEach(card => {
-    card.addEventListener('click', function() {
+    const selectHandler = function() {
       selectProject(parseInt(this.getAttribute('data-project-id')));
+    };
+    card.addEventListener('click', selectHandler);
+    card.addEventListener('touchstart', selectHandler, { passive: true });
+    card.addEventListener('pointerdown', selectHandler);
+  });
+
+  // Prevent delete clicks from selecting the card
+  document.querySelectorAll('.project-remove-form').forEach(form => {
+    form.addEventListener('click', function(event) {
+      event.stopPropagation();
+    });
+    form.addEventListener('touchstart', function(event) {
+      event.stopPropagation();
     });
   });
   

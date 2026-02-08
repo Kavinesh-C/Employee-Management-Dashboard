@@ -26,7 +26,7 @@ def auto_assign_leaders():
             
             # Check Leave
             on_leave = db.query(LeaveRequest).filter(
-                LeaveRequest.user_id == perm_leader.id,
+                LeaveRequest.employee_id == perm_leader.employee_id,
                 LeaveRequest.status == "Approved",
                 LeaveRequest.start_date <= date.today(),
                 LeaveRequest.end_date >= date.today()

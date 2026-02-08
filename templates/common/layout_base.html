@@ -83,6 +83,36 @@
 
     .executive-mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
 
+    .notification-panel {
+      width: 320px;
+      max-height: 420px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      z-index: 600;
+    }
+
+    .notification-item {
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .notification-item:last-child {
+      border-bottom: none;
+    }
+
+    .notification-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #2563eb;
+    }
+
+    #notificationList {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
     @media (max-width: 1024px) {
       .sidebar-fixed { display: none; }
       .main-canvas { margin-left: 0; }
@@ -140,9 +170,6 @@
         <a href="/admin/manage_employees" class="nav-link">
           <i class="bi bi-person"></i> Manage Employees
         </a>
-         <a href="/admin/manage_teams" class="nav-link">
-          <i class="bi bi-people"></i> Manage Teams
-        </a>
         <a href="/admin/leave_requests" class="nav-link justify-between">
           <div class="flex items-center gap-3"><i class="bi bi-calendar-check"></i> <span>Leave Approvals</span></div>
           <span id="leaveCountBadge" class="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 hidden">0</span>
@@ -167,6 +194,9 @@
         <a href="/manager/assign_task" class="nav-link {% if request.path.startswith('/manager/assign_task') %}active{% endif %}">
           <i class="bi bi-clipboard-check"></i> Assign Task
         </a>
+        <a href="/manager/manage_teams" class="nav-link {% if request.path.startswith('/manager/manage_teams') or request.path.startswith('/manager/team') %}active{% endif %}">
+          <i class="bi bi-people"></i> Manage Teams
+        </a>
         {% endif %}
         <a href="/employee/attendance" class="nav-link">
           <i class="bi bi-stopwatch"></i> Attendance
@@ -179,6 +209,9 @@
         </a>
         <a href="/employee/payslips" class="nav-link">
           <i class="bi bi-wallet2"></i> My Payslips
+        </a>
+        <a href="/employee/team" class="nav-link">
+          <i class="bi bi-people"></i> My Team
         </a>
       {% endif %}
 
@@ -257,6 +290,24 @@
   <span id="meetingBadge" class="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
 </button>
 {% endif %}
+
+<div class="relative z-[600]">
+  <button id="notificationToggle" class="theme-btn flex items-center justify-center relative" title="Notifications">
+    <i class="bi bi-bell"></i>
+    <span id="notificationBadge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+  </button>
+  <div id="notificationPanel" class="notification-panel hidden absolute right-0 mt-3 rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+      <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Notifications</span>
+      <button id="markAllRead" class="text-[10px] font-black uppercase tracking-widest text-blue-600">Mark all</button>
+    </div>
+    <div id="notificationList" class="divide-y"></div>
+    <div id="notificationLoadMore" class="px-4 py-3 border-t border-slate-100 hidden">
+      <button class="w-full text-[10px] font-black uppercase tracking-widest text-blue-600">Load more</button>
+    </div>
+    <div id="notificationEmpty" class="px-4 py-6 text-center text-xs text-slate-400 hidden">No notifications</div>
+  </div>
+</div>
 
 {% if request.path.startswith('/employee') %}
 <!-- CHAT ICON -->
@@ -412,14 +463,18 @@ setInterval(updateClock, 1000);
     
     function setTheme(t) {
       document.body.setAttribute('data-theme', t);
-      icon.className = t === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+      if (icon) {
+        icon.className = t === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+      }
       localStorage.setItem('theme', t);
     }
 
-    toggle.addEventListener('click', () => {
-      const current = document.body.getAttribute('data-theme');
-      setTheme(current === 'dark' ? 'light' : 'dark');
-    });
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        const current = document.body.getAttribute('data-theme');
+        setTheme(current === 'dark' ? 'light' : 'dark');
+      });
+    }
 
     // Initialize Theme
     setTheme(localStorage.getItem('theme') || 'light');
@@ -460,6 +515,168 @@ function updateChatBadge() {
 // poll every 5 seconds
 setInterval(updateChatBadge, 5000);
 updateChatBadge();
+
+let notificationOffset = 0;
+const notificationLimit = 10;
+let notificationTotal = 0;
+
+async function fetchNotifications(reset = false) {
+  try {
+    if (reset) {
+      notificationOffset = 0;
+    }
+    const res = await fetch(`/api/notifications?offset=${notificationOffset}&limit=${notificationLimit}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    notificationTotal = data.total || 0;
+    const badge = document.getElementById("notificationBadge");
+    if (badge) {
+      if (data.unread_count > 0) {
+        badge.textContent = data.unread_count;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+    renderNotifications(data.items || [], reset);
+  } catch (err) {
+    console.error("Notification fetch failed", err);
+  }
+}
+
+function renderNotifications(items, reset) {
+  const list = document.getElementById("notificationList");
+  const empty = document.getElementById("notificationEmpty");
+  const loadMoreWrap = document.getElementById("notificationLoadMore");
+  if (!list || !empty) return;
+  if (reset) {
+    list.innerHTML = "";
+  }
+
+  if (!items.length && list.children.length === 0) {
+    empty.classList.remove("hidden");
+    if (loadMoreWrap) loadMoreWrap.classList.add("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "notification-item px-4 py-3 flex gap-3 items-start";
+    if (item.link) {
+      row.classList.add('cursor-pointer');
+      row.addEventListener('click', () => {
+        markNotificationRead(item.id);
+        window.location.href = item.link;
+      });
+    }
+
+    const dot = document.createElement("div");
+    dot.className = "notification-dot mt-1" + (item.is_read ? " opacity-20" : "");
+
+    const body = document.createElement("div");
+    body.className = "flex-1";
+
+    const title = document.createElement("div");
+    title.className = "text-xs font-bold text-slate-900";
+    title.textContent = item.title || "Notification";
+
+    const message = document.createElement("div");
+    message.className = "text-[11px] text-slate-500 mt-1";
+    message.textContent = item.message || "";
+
+    const time = document.createElement("div");
+    time.className = "text-[10px] text-slate-400 mt-1";
+    if (item.created_at) {
+      const dt = new Date(item.created_at);
+      time.textContent = dt.toLocaleString();
+    }
+
+    body.appendChild(title);
+    body.appendChild(message);
+    body.appendChild(time);
+
+    if (item.link) {
+      const link = document.createElement("a");
+      link.href = item.link;
+      link.className = "ml-auto text-[10px] font-black uppercase tracking-widest text-blue-600";
+      link.textContent = "View";
+      link.addEventListener("click", (event) => {
+        event.stopPropagation();
+        markNotificationRead(item.id);
+      });
+      row.appendChild(link);
+    }
+
+    row.appendChild(dot);
+    row.appendChild(body);
+    list.appendChild(row);
+  });
+
+  if (loadMoreWrap) {
+    const canLoadMore = list.children.length < notificationTotal;
+    loadMoreWrap.classList.toggle("hidden", !canLoadMore);
+  }
+}
+
+async function markNotificationRead(id) {
+  if (!id) return;
+  const fd = new FormData();
+  fd.append("notification_id", String(id));
+  await fetch("/api/notifications/read", { method: "POST", body: fd });
+  fetchNotifications();
+}
+
+async function markAllNotificationsRead() {
+  const fd = new FormData();
+  fd.append("mark_all", "true");
+  await fetch("/api/notifications/read", { method: "POST", body: fd });
+  fetchNotifications();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  const notificationToggle = document.getElementById("notificationToggle");
+  const panel = document.getElementById("notificationPanel");
+  const markAll = document.getElementById("markAllRead");
+  const loadMoreWrap = document.getElementById("notificationLoadMore");
+
+  if (notificationToggle && panel) {
+    notificationToggle.addEventListener("click", function(e) {
+      e.stopPropagation();
+      panel.classList.toggle("hidden");
+      if (!panel.classList.contains("hidden")) {
+        fetchNotifications(true);
+      }
+    });
+  }
+
+  if (markAll) {
+    markAll.addEventListener("click", function(e) {
+      e.preventDefault();
+      markAllNotificationsRead();
+    });
+  }
+
+  if (loadMoreWrap) {
+    const loadBtn = loadMoreWrap.querySelector("button");
+    if (loadBtn) {
+      loadBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        notificationOffset += notificationLimit;
+        fetchNotifications(false);
+      });
+    }
+  }
+
+  document.addEventListener("click", function(e) {
+    if (!panel || panel.classList.contains("hidden")) return;
+    if (!panel.contains(e.target) && e.target !== notificationToggle) {
+      panel.classList.add("hidden");
+    }
+  });
+
+  fetchNotifications(true);
+});
 </script>
 
   <script>

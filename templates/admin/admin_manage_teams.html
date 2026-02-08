@@ -25,6 +25,16 @@
                 Assign Staff
             </button>
 
+            <button onclick="document.getElementById('createProjectModal').classList.remove('hidden')"
+                    class="px-8 py-4 bg-white border border-slate-900 text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                Create Project
+            </button>
+
+            <a href="/manager/projects"
+               class="px-8 py-4 bg-white border border-slate-900 text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                Manage Projects
+            </a>
+
             <button onclick="document.getElementById('createTeamModal').classList.remove('hidden')" 
                     class="px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">
                 Create New Unit
@@ -35,8 +45,14 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1" id="teamContainer">
         {% for item in team_data %}
         {% set team = item.team %}
-        <div class="border border-slate-200 bg-white p-8 group hover:border-slate-900 transition-all team-card relative" 
-             data-search="{{ team.name }} {{ team.department }}">
+           <div class="border border-slate-200 bg-white p-8 group hover:border-slate-900 transition-all team-card relative cursor-pointer" 
+               data-search="{{ team.name }} {{ team.department }}"
+               data-team-name="{{ team.name }}"
+               data-team-department="{{ team.department }}"
+               data-team-leader="{{ team.leader.name if team.leader else 'Unassigned' }}"
+               data-team-project="{{ team.project.name if team.project else 'Not linked' }}"
+               data-team-members="{{ item.members | map(attribute='name') | list | tojson }}"
+               data-team-member-ids="{{ item.members | map(attribute='employee_id') | list | tojson }}">
             
             <div class="flex justify-between items-start mb-10">
                 <div>
@@ -44,9 +60,12 @@
                     <span class="executive-mono text-[9px] font-black text-blue-600 uppercase tracking-widest mt-1 block">
                         Division: {{ team.department }}
                     </span>
+                    <a href="/manager/projects" class="executive-mono text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1 block hover:text-indigo-600">
+                        Project: {{ team.project.name if team.project else 'Not linked' }}
+                    </a>
                 </div>
                 
-                <form action="/admin/delete_team" method="POST" data-confirm="Disband {{ team.name }}?">
+                <form action="/manager/delete_team" method="POST" data-confirm="Disband {{ team.name }}?" class="team-action">
                     <input type="hidden" name="team_id" value="{{ team.id }}">
                     <button type="submit" class="text-slate-200 hover:text-red-600 transition-colors">
                         <i class="bi bi-trash-fill text-xl"></i>
@@ -108,7 +127,7 @@
                 <div class="executive-mono text-[10px] font-bold text-slate-400 uppercase">
                     Personnel Count: {{ item.member_count }}
                 </div>
-                <a href="/admin/team/{{ team.id }}/members"
+                     <a href="/manager/team/{{ team.id }}/members" class="team-action"
                    class="text-[9px] font-black text-slate-900 uppercase tracking-widest border-b-2 border-slate-900 hover:text-indigo-600 hover:border-indigo-600 transition-colors">
                    View Members
                 </a>
@@ -123,6 +142,38 @@
 
 </div>
 
+<div id="teamDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-2xl p-10 border border-slate-200 relative">
+        <div class="h-2 w-full bg-slate-900 absolute top-0 left-0"></div>
+        <button onclick="closeTeamModal()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-900">
+            <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+
+        <div class="space-y-6">
+            <div>
+                <h3 id="teamModalName" class="text-3xl font-black uppercase tracking-tighter text-slate-900"></h3>
+                <p id="teamModalDepartment" class="executive-mono text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-2"></p>
+            </div>
+
+            <div class="border border-slate-100 bg-slate-50 p-4">
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Unit Leadership</p>
+                <div class="text-sm font-black text-slate-900 uppercase tracking-tight" id="teamModalLeader"></div>
+            </div>
+
+            <div class="border border-slate-100 bg-slate-50 p-4">
+                <p class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Linked Project</p>
+                <a id="teamModalProjectLink" href="/manager/projects" class="text-sm font-black text-slate-900 uppercase tracking-tight hover:text-indigo-600"></a>
+            </div>
+
+            <div>
+                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-3">Assigned Staff</p>
+                <ul id="teamModalMembers" class="space-y-1 text-xs font-bold text-slate-700"></ul>
+                <p id="teamModalEmpty" class="text-xs italic text-slate-400 hidden">No staff assigned</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="assignMemberModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
     <div class="bg-white w-full max-w-xl p-12 border border-slate-200 relative">
         <div class="h-2 w-full bg-slate-900 absolute top-0 left-0"></div>
@@ -132,7 +183,7 @@
 
         <h3 class="text-3xl font-black uppercase tracking-tighter text-slate-900 mb-10">Staff Assignment</h3>
         
-        <form action="/admin/assign_member" method="POST" class="space-y-8">
+        <form action="/manager/assign_member" method="POST" class="space-y-8">
             <div>
                 <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Staff Selection</label>
                 <select name="employee_id" required class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900 appearance-none">
@@ -170,7 +221,7 @@
 
         <h3 class="text-3xl font-black uppercase tracking-tighter text-slate-900 mb-10">Unit Initialization</h3>
         
-        <form action="/admin/create_team" method="POST" class="space-y-8">
+        <form action="/manager/create_team" method="POST" class="space-y-8">
             <div>
                 <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Unit Nomenclature</label>
                 <input type="text" name="name" required placeholder="E.G. OPERATIONS_ALPHA" class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900">
@@ -187,6 +238,16 @@
             </div>
 
             <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Project Assignment</label>
+                <select name="project_id" required class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900 appearance-none">
+                    <option value="" disabled selected>Select Project</option>
+                    {% for project in projects %}
+                        <option value="{{ project.id }}">{{ project.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
                 <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Designated Leader (Optional)</label>
                 <select name="leader_employee_id" class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900 appearance-none">
                     <option value="">-- UNASSIGNED --</option>
@@ -196,9 +257,48 @@
                 </select>
             </div>
 
+
             <div class="flex justify-end gap-6 pt-6">
                 <button type="button" onclick="document.getElementById('createTeamModal').classList.add('hidden')" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Abort</button>
                 <button type="submit" class="px-10 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">Initialize Unit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="createProjectModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-xl p-12 border border-slate-200 relative">
+        <div class="h-2 w-full bg-slate-900 absolute top-0 left-0"></div>
+        <button onclick="document.getElementById('createProjectModal').classList.add('hidden')" class="absolute top-6 right-6 text-slate-300 hover:text-slate-900">
+            <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+
+        <h3 class="text-3xl font-black uppercase tracking-tighter text-slate-900 mb-10">Project Initiation</h3>
+
+        <form action="/manager/create_project" method="POST" class="space-y-8">
+            <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Project Name</label>
+                <input type="text" name="name" required placeholder="E.G. OPERATIONS_Q2" class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900">
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Project Department</label>
+                <select name="department" required class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900 appearance-none">
+                    <option value="" disabled selected>Select Department</option>
+                    {% for dept in departments %}
+                        <option value="{{ dept.name }}">{{ dept.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 block">Project Due Date</label>
+                <input type="date" name="deadline" required class="w-full bg-slate-50 border border-slate-200 px-4 py-4 text-xs font-black uppercase outline-none focus:border-slate-900">
+            </div>
+
+            <div class="flex justify-end gap-6 pt-6">
+                <button type="button" onclick="document.getElementById('createProjectModal').classList.add('hidden')" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Abort</button>
+                <button type="submit" class="px-10 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">Initialize Project</button>
             </div>
         </form>
     </div>
@@ -214,5 +314,61 @@
             cards[i].style.display = data.indexOf(input) > -1 ? "" : "none";
         }
     }
+
+    function openTeamModal(card) {
+        const name = card.getAttribute('data-team-name') || '';
+        const department = card.getAttribute('data-team-department') || '';
+        const leader = card.getAttribute('data-team-leader') || 'Unassigned';
+        const project = card.getAttribute('data-team-project') || 'Not linked';
+        const members = JSON.parse(card.getAttribute('data-team-members') || '[]');
+        const memberIds = JSON.parse(card.getAttribute('data-team-member-ids') || '[]');
+
+        document.getElementById('teamModalName').textContent = name;
+        document.getElementById('teamModalDepartment').textContent = `Division: ${department}`;
+        document.getElementById('teamModalLeader').textContent = leader;
+        document.getElementById('teamModalProjectLink').textContent = project;
+
+        const list = document.getElementById('teamModalMembers');
+        const empty = document.getElementById('teamModalEmpty');
+        list.innerHTML = '';
+
+        if (!members.length) {
+            empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            members.forEach((member, idx) => {
+                const li = document.createElement('li');
+                const empId = memberIds[idx] ? ` (${memberIds[idx]})` : '';
+                li.textContent = `${member}${empId}`;
+                list.appendChild(li);
+            });
+        }
+
+        document.getElementById('teamDetailModal').classList.remove('hidden');
+    }
+
+    function closeTeamModal() {
+        document.getElementById('teamDetailModal').classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.team-card').forEach(card => {
+            card.addEventListener('click', function() {
+                openTeamModal(this);
+            });
+            card.addEventListener('touchstart', function() {
+                openTeamModal(this);
+            }, { passive: true });
+        });
+
+        document.querySelectorAll('.team-action').forEach(el => {
+            el.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+            el.addEventListener('touchstart', function(event) {
+                event.stopPropagation();
+            }, { passive: true });
+        });
+    });
 </script>
 {% endblock %}

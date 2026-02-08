@@ -85,6 +85,7 @@ class Team(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     department = Column(String(100), nullable=False)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
     
     # Who is acting as leader RIGHT NOW (swaps daily)
     leader_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -99,6 +100,7 @@ class Team(Base):
     permanent_leader = relationship("User", foreign_keys=[permanent_leader_id])
     members = relationship("User", back_populates="team", foreign_keys="User.current_team_id")
     memberships = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
+    project = relationship("Project")
 
 
 # --- ATTENDANCE ---
@@ -346,6 +348,20 @@ class EmailSettings(Base):
     smtp_host = Column(String(255), nullable=True)
     smtp_port = Column(String(20), nullable=True)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=True)
+    notif_type = Column(String(50), nullable=True)
+    link = Column(String(255), nullable=True)
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User")
 
 
 # --- CALENDAR EVENTS ---

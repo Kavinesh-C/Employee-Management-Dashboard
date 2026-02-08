@@ -50,7 +50,7 @@ scheduler = BackgroundScheduler()
 from models import (
     User, Attendance, RemovedEmployee, UnknownRFID, Room, Department, 
     Task, LeaveRequest, Team, Project, ProjectTask, ProjectAssignment, 
-    ProjectTaskAssignee, AttendanceLog, AttendanceDaily, AttendanceDate, Payroll, OfficeHoliday, Meeting, ProjectMeetingAssignee, MeetingAttendance, CalendarEvent
+    ProjectTaskAssignee, AttendanceLog, AttendanceDaily, AttendanceDate, Payroll, OfficeHoliday, Meeting, ProjectMeetingAssignee, MeetingAttendance, CalendarEvent, Notification
 )
 from models import EmailSettings
 from team_scheduler import auto_assign_leaders
@@ -58,6 +58,23 @@ from calendar_routes import register_calendar_routes
 
 # Setup
 Base.metadata.create_all(bind=engine)
+
+
+def create_notification(
+    db: Session,
+    user_id: int,
+    title: str,
+    message: str | None = None,
+    notif_type: str | None = None,
+    link: str | None = None
+) -> None:
+    db.add(Notification(
+        user_id=user_id,
+        title=title,
+        message=message,
+        notif_type=notif_type,
+        link=link
+    ))
 
 
 def auto_sync_schema() -> None:
@@ -945,16 +962,17 @@ async def admin_edit_employee(request: Request, employee_id: str,
     })
 
 # ----------------------------------------
-# ADMIN TEAM MANAGEMENT ROUTES
+# MANAGER TEAM MANAGEMENT ROUTES
 # ----------------------------------------
 
-@app.get("/admin/manage_teams", response_class=HTMLResponse)
-async def admin_manage_teams(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if user.role != "admin":
+@app.get("/manager/manage_teams", response_class=HTMLResponse)
+async def manager_manage_teams(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.role != "manager":
         raise HTTPException(status_code=403, detail="Access denied")
     
     teams = db.query(Team).all()
     employees = db.query(User).filter(User.is_active == True).all()
+    projects = db.query(Project).filter(Project.department == user.department).all()
     
     # --- FIX: FETCH DEPARTMENTS ---
     departments = db.query(Department).all()
@@ -962,8 +980,14 @@ async def admin_manage_teams(request: Request, user: User = Depends(get_current_
     # Calculate Project Status for Teams (Optional logic for the progress bar)
     team_data = []
     for t in teams:
-        projs = db.query(Project).filter(Project.department == t.department).all()
         completion = 0
+        projs = []
+        if t.project_id:
+            project = db.query(Project).filter(Project.id == t.project_id).first()
+            if project:
+                projs = [project]
+        if not projs:
+            projs = db.query(Project).filter(Project.department == t.department).all()
         if projs:
             total_tasks = sum([len(p.tasks) for p in projs])
             completed_tasks = sum([len([task for task in p.tasks if task.status == 'completed']) for p in projs])
@@ -985,12 +1009,13 @@ async def admin_manage_teams(request: Request, user: User = Depends(get_current_
         "user": user, 
         "team_data": team_data, 
         "employees": employees,
-        "departments": departments  # <--- PASSING THIS IS CRITICAL
+        "departments": departments,
+        "projects": projects
     })
 
-@app.get("/admin/team/{team_id}/members", response_class=HTMLResponse)
+@app.get("/manager/team/{team_id}/members", response_class=HTMLResponse)
 def view_team_members(team_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    if user.role != "admin":
+    if user.role != "manager":
         raise HTTPException(status_code=403, detail="Access denied")
     
     team = db.query(Team).filter(Team.id == team_id).first()
@@ -1009,15 +1034,16 @@ def view_team_members(team_id: int, request: Request, db: Session = Depends(get_
         }
     )
 
-@app.post("/admin/create_team")
+@app.post("/manager/create_team")
 async def create_team(
     name: str = Form(...),
     department: str = Form(...), # Accepts any string now
     leader_employee_id: str = Form(None),
+    project_id: int = Form(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if user.role != "admin": raise HTTPException(status_code=403)
+    if user.role != "manager": raise HTTPException(status_code=403)
     
     leader_id = None
     leader = None
@@ -1027,50 +1053,133 @@ async def create_team(
             leader_id = leader.id
             leader.can_manage = True
 
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
     # Set both leader_id (active) and permanent_leader_id (original)
-    new_team = Team(name=name, department=department, leader_id=leader_id, permanent_leader_id=leader_id)
+    new_team = Team(
+        name=name,
+        department=department,
+        leader_id=leader_id,
+        permanent_leader_id=leader_id,
+        project_id=project.id
+    )
     db.add(new_team)
     db.commit()
     
     # If leader exists, set their current_team_id
     if leader:
         leader.current_team_id = new_team.id
+        create_notification(
+            db,
+            leader.id,
+            "Team assigned",
+            f"You are assigned as leader of team {new_team.name}.",
+            "team",
+            "/employee/team"
+        )
+        if project:
+            create_notification(
+                db,
+                leader.id,
+                "Project assigned",
+                f"Project {project.name} is linked to your team.",
+                "project",
+                "/employee/team"
+            )
         db.commit()
 
-    return RedirectResponse("/admin/manage_teams", status_code=303)
+    return RedirectResponse("/manager/manage_teams", status_code=303)
 
-@app.post("/admin/delete_team")
+@app.post("/manager/create_project")
+async def manager_create_project(
+    name: str = Form(...),
+    department: str = Form(...),
+    deadline: str = Form(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user.role != "manager":
+        raise HTTPException(status_code=403)
+
+    deadline_dt = None
+    try:
+        deadline_dt = datetime.datetime.strptime(deadline, "%Y-%m-%d")
+    except Exception:
+        deadline_dt = None
+
+    new_project = Project(
+        name=name,
+        department=department,
+        deadline=deadline_dt,
+        start_date=datetime.datetime.utcnow(),
+        status="active"
+    )
+    db.add(new_project)
+    db.commit()
+
+    return RedirectResponse("/manager/manage_teams", status_code=303)
+
+@app.post("/manager/delete_team")
 async def delete_team(
     team_id: int = Form(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if user.role != "admin": raise HTTPException(status_code=403)
+    if user.role != "manager": raise HTTPException(status_code=403)
     
     team = db.query(Team).filter(Team.id == team_id).first()
     if team:
         db.delete(team) # Cascades to team_members due to model setup
         db.commit()
         
-    return RedirectResponse("/admin/manage_teams", status_code=303)
+    return RedirectResponse("/manager/manage_teams", status_code=303)
 
-@app.post("/admin/assign_member")
+@app.post("/manager/assign_member")
 async def assign_team_member(
     employee_id: str = Form(...),
     team_id: int = Form(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if user.role != "admin": raise HTTPException(status_code=403)
+    if user.role != "manager": raise HTTPException(status_code=403)
 
     emp = db.query(User).filter(User.employee_id == employee_id).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
 
     emp.current_team_id = team_id
+    team = db.query(Team).filter(Team.id == team_id).first()
+    if team and team.project_id:
+        existing_assignment = db.query(ProjectAssignment).filter(
+            ProjectAssignment.project_id == team.project_id,
+            ProjectAssignment.employee_id == emp.employee_id
+        ).first()
+        if not existing_assignment:
+            db.add(ProjectAssignment(project_id=team.project_id, employee_id=emp.employee_id))
+        project = db.query(Project).filter(Project.id == team.project_id).first()
+        if project:
+            create_notification(
+                db,
+                emp.id,
+                "Project assigned",
+                f"You have been assigned to project {project.name}.",
+                "project",
+                "/employee/team"
+            )
+    if team:
+        create_notification(
+            db,
+            emp.id,
+            "Team assigned",
+            f"You have been added to team {team.name}.",
+            "team",
+            "/employee/team"
+        )
     db.commit()
 
-    return RedirectResponse("/admin/manage_teams", status_code=303)
+    return RedirectResponse("/manager/manage_teams", status_code=303)
 # (Payroll update route removed)
 
 #-----------------------------------------
@@ -1514,6 +1623,16 @@ async def update_leave_status(request: Request,
             leave.status,
             employee.employee_id
         )
+    if employee:
+        create_notification(
+            db,
+            employee.id,
+            "Leave request updated",
+            f"Your leave request was {leave.status}.",
+            "leave",
+            "/employee/leave"
+        )
+        db.commit()
     return RedirectResponse("/admin/leave_requests", status_code=303)
 
 # ----------------------------------------
@@ -1759,6 +1878,24 @@ async def create_meeting(
         else:
             email_status = "disabled"
 
+    if assignee_list:
+        for emp_id in assignee_list:
+            if emp_id == user.employee_id:
+                continue
+            u = db.query(User).filter(User.employee_id == emp_id).first()
+            if not u:
+                continue
+            project_label = project_name
+            create_notification(
+                db,
+                u.id,
+                "Meeting assigned",
+                f"Meeting '{title}' scheduled (Project: {project_label}).",
+                "meeting",
+                "/employee"
+            )
+        db.commit()
+
     # Create a CalendarEvent with target_employee_hashes so assignees see the meeting
     try:
         unique_targets = sorted(set(target_tokens))
@@ -1900,6 +2037,27 @@ async def create_task(
             except Exception:
                 continue
         db.commit()
+        for emp_id in assignees:
+            emp_id = str(emp_id).strip()
+            if not emp_id:
+                continue
+            emp = db.query(User).filter(User.employee_id == emp_id).first()
+            if not emp:
+                continue
+            project_name = "No project"
+            if pid:
+                project = db.query(Project).filter(Project.id == pid).first()
+                if project:
+                    project_name = project.name
+            create_notification(
+                db,
+                emp.id,
+                "Task assigned",
+                f"Task '{title}' assigned (Project: {project_name}).",
+                "task",
+                "/employee/tasks"
+            )
+        db.commit()
 
     return RedirectResponse("/manager/assign_task", status_code=303)
 
@@ -2001,7 +2159,54 @@ async def manager_projects_page(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    raise HTTPException(status_code=404, detail="Manager projects page has been removed")
+    if user.role != "manager":
+        raise HTTPException(status_code=403)
+
+    projects = db.query(Project).filter(Project.department == user.department).all()
+
+    return templates.TemplateResponse("employee/employee_manager_projects.html", {
+        "request": request,
+        "user": user,
+        "projects": projects
+    })
+
+
+@app.post("/manager/projects/delete")
+async def manager_delete_project(
+    project_id: int = Form(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if user.role != "manager":
+        raise HTTPException(status_code=403)
+
+    project = db.query(Project).filter(
+        Project.id == project_id,
+        Project.department == user.department
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    db.query(Team).filter(Team.project_id == project_id).update({"project_id": None}, synchronize_session=False)
+
+    meeting_ids = [m.id for m in db.query(Meeting.id).filter(Meeting.project_id == project_id).all()]
+    if meeting_ids:
+        db.query(MeetingAttendance).filter(MeetingAttendance.meeting_id.in_(meeting_ids)).delete(synchronize_session=False)
+        db.query(ProjectMeetingAssignee).filter(ProjectMeetingAssignee.meeting_id.in_(meeting_ids)).delete(synchronize_session=False)
+        db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).delete(synchronize_session=False)
+
+    task_ids = [t.id for t in db.query(ProjectTask.id).filter(ProjectTask.project_id == project_id).all()]
+    if task_ids:
+        db.query(ProjectTaskAssignee).filter(ProjectTaskAssignee.task_id.in_(task_ids)).delete(synchronize_session=False)
+        db.query(ProjectTask).filter(ProjectTask.id.in_(task_ids)).delete(synchronize_session=False)
+
+    db.query(ProjectAssignment).filter(ProjectAssignment.project_id == project_id).delete(synchronize_session=False)
+    db.query(Task).filter(Task.project_id == project_id).delete(synchronize_session=False)
+
+    db.delete(project)
+    db.commit()
+
+    return RedirectResponse("/manager/projects", status_code=303)
 
 @app.get("/leader/dashboard", response_class=HTMLResponse)
 async def leader_dashboard(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -2065,6 +2270,15 @@ async def assign_task(
 async def employee_dashboard(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     # ... (Your existing logic) ...
     total_hours = 0
+    team = None
+    team_leader = None
+    team_project = None
+    if user.current_team_id:
+        team = db.query(Team).filter(Team.id == user.current_team_id).first()
+        if team:
+            team_leader = team.leader
+            if team.project_id:
+                team_project = db.query(Project).filter(Project.id == team.project_id).first()
     tasks = db.query(Task).filter(
         Task.user_id == user.employee_id
     ).order_by(Task.created_at.desc()).limit(5).all()
@@ -2073,6 +2287,9 @@ async def employee_dashboard(request: Request, user: User = Depends(get_current_
                                         "request": request, 
                                         "user": user, 
                                         "total_hours": total_hours, 
+                                        "team": team,
+                                        "team_leader": team_leader,
+                                        "team_project": team_project,
                                         "tasks": tasks, 
                                         "current_year": 2026
                                         }
@@ -2111,6 +2328,7 @@ async def employee_team(
     team = None
     members = []
     leader = None
+    projects = []
 
     if user.current_team_id:
         team = db.query(Team).filter(Team.id == user.current_team_id).first()
@@ -2119,6 +2337,39 @@ async def employee_team(
             members = db.query(User).filter(User.current_team_id == team.id).all()
             leader = team.leader
 
+    projects_from_tasks = (
+        db.query(Project)
+        .join(Task, Task.project_id == Project.id)
+        .filter(Task.user_id == user.employee_id)
+        .all()
+    )
+    projects_from_assignments = (
+        db.query(Project)
+        .join(ProjectAssignment, ProjectAssignment.project_id == Project.id)
+        .filter(ProjectAssignment.employee_id == user.employee_id)
+        .all()
+    )
+    projects_from_team = []
+    if team and team.project_id:
+        team_project = db.query(Project).filter(Project.id == team.project_id).first()
+        if team_project:
+            projects_from_team.append(team_project)
+    project_map = {p.id: p for p in (projects_from_tasks + projects_from_assignments + projects_from_team)}
+    projects = list(project_map.values())
+    project_task_counts = {}
+    if projects:
+        project_ids = [p.id for p in projects]
+        task_rows = (
+            db.query(Task.project_id, func.count(Task.id))
+            .filter(
+                Task.user_id == user.employee_id,
+                Task.project_id.in_(project_ids)
+            )
+            .group_by(Task.project_id)
+            .all()
+        )
+        project_task_counts = {pid: count for pid, count in task_rows}
+
     return templates.TemplateResponse(
         "employee/employee_team.html",
         {
@@ -2126,7 +2377,9 @@ async def employee_team(
             "user": user,
             "team": team,
             "members": members,
-            "leader": leader
+            "leader": leader,
+            "projects": projects,
+            "project_task_counts": project_task_counts
         }
     )
 
@@ -2386,7 +2639,12 @@ async def meeting_room_any(
 
 @app.get("/employee/leave", response_class=HTMLResponse)
 async def employee_leave_page(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    leaves = db.query(LeaveRequest).filter(LeaveRequest.employee_id == user.employee_id).order_by(LeaveRequest.id.desc()).all()
+    leaves = db.query(LeaveRequest).filter(
+        or_(
+            LeaveRequest.employee_id == user.employee_id,
+            LeaveRequest.employee_id == str(user.id)
+        )
+    ).order_by(LeaveRequest.id.desc()).all()
     return templates.TemplateResponse("employee/employee_leave.html",
                                       {"request": request, "user": user,
                                        "leaves": leaves,
@@ -3088,20 +3346,24 @@ async def all_projects(user: User = Depends(get_current_user), db: Session = Dep
     
     projects_data = []
     for project in projects:
-        # Get task assignments for this project
-        task_assignments = db.query(ProjectTaskAssignee).filter(
-            ProjectTaskAssignee.project_id == project.id
-        ).all()
-        
-        # Get assigned employees
-        assigned_employees = []
-        for assignment in task_assignments:
-            emp = db.query(User).filter(User.id == assignment.employee_id).first()
-            if emp and emp not in assigned_employees:
-                assigned_employees.append(emp)
-        
         # Get project tasks
         tasks = db.query(ProjectTask).filter(ProjectTask.project_id == project.id).all()
+
+        # Collect assignees via task assignee join
+        task_ids = [t.id for t in tasks]
+        assigned_employees = []
+        if task_ids:
+            assignee_ids = [
+                a.employee_id
+                for a in db.query(ProjectTaskAssignee.employee_id)
+                .filter(ProjectTaskAssignee.task_id.in_(task_ids))
+                .distinct()
+                .all()
+            ]
+            if assignee_ids:
+                assigned_employees = db.query(User).filter(
+                    User.employee_id.in_(assignee_ids)
+                ).all()
         
         projects_data.append({
             "id": project.id,
@@ -3115,6 +3377,146 @@ async def all_projects(user: User = Depends(get_current_user), db: Session = Dep
         })
     
     return projects_data
+
+
+@app.get("/api/notifications")
+async def get_notifications(
+    offset: int = 0,
+    limit: int = 25,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    existing_keys = {
+        (n.title, n.message or "", n.link or "")
+        for n in db.query(Notification)
+        .filter(Notification.user_id == user.id)
+        .all()
+    }
+
+    def add_if_missing(title: str, message: str, notif_type: str, link: str) -> None:
+        key = (title, message, link)
+        if key in existing_keys:
+            return
+        create_notification(db, user.id, title, message, notif_type, link)
+        existing_keys.add(key)
+
+    if user.current_team_id:
+        team = db.query(Team).filter(Team.id == user.current_team_id).first()
+        if team:
+            add_if_missing(
+                "Team assigned",
+                f"You are assigned to team {team.name}.",
+                "team",
+                "/employee/team"
+            )
+            if team.project_id:
+                project = db.query(Project).filter(Project.id == team.project_id).first()
+                if project:
+                    add_if_missing(
+                        "Project assigned",
+                        f"Project {project.name} is linked to your team.",
+                        "project",
+                        "/employee/team"
+                    )
+
+    assignments = db.query(ProjectAssignment).filter(ProjectAssignment.employee_id == user.employee_id).all()
+    for assignment in assignments:
+        project = db.query(Project).filter(Project.id == assignment.project_id).first()
+        if project:
+            add_if_missing(
+                "Project assigned",
+                f"You have been assigned to project {project.name}.",
+                "project",
+                "/employee/team"
+            )
+
+    tasks = db.query(Task).filter(Task.user_id == user.employee_id).order_by(Task.created_at.desc()).all()
+    for task in tasks:
+        add_if_missing(
+            "Task assigned",
+            f"Task '{task.title}' assigned.",
+            "task",
+            "/employee/tasks"
+        )
+
+    meetings = db.query(ProjectMeetingAssignee).filter(ProjectMeetingAssignee.employee_id == user.employee_id).all()
+    for meeting_link in meetings:
+        meeting = db.query(Meeting).filter(Meeting.id == meeting_link.meeting_id).first()
+        if meeting:
+            add_if_missing(
+                "Meeting assigned",
+                f"Meeting '{meeting.title}' scheduled.",
+                "meeting",
+                "/employee"
+            )
+
+    leave_items = db.query(LeaveRequest).filter(
+        LeaveRequest.employee_id == user.employee_id,
+        LeaveRequest.status != "Pending"
+    ).all()
+    for leave in leave_items:
+        add_if_missing(
+            "Leave request updated",
+            f"Your leave request was {leave.status}.",
+            "leave",
+            "/employee/leave"
+        )
+
+    db.commit()
+
+    total_count = db.query(Notification).filter(Notification.user_id == user.id).count()
+    items = (
+        db.query(Notification)
+        .filter(Notification.user_id == user.id)
+        .order_by(Notification.created_at.desc())
+        .offset(max(offset, 0))
+        .limit(min(max(limit, 1), 100))
+        .all()
+    )
+    unread_count = db.query(Notification).filter(
+        Notification.user_id == user.id,
+        Notification.is_read == False
+    ).count()
+
+    return {
+        "total": total_count,
+        "offset": offset,
+        "limit": limit,
+        "unread_count": unread_count,
+        "items": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "message": item.message or "",
+                "notif_type": item.notif_type or "",
+                "link": item.link or "",
+                "created_at": item.created_at.isoformat() if item.created_at else "",
+                "is_read": item.is_read
+            }
+            for item in items
+        ]
+    }
+
+
+@app.post("/api/notifications/read")
+async def mark_notifications_read(
+    notification_id: Optional[int] = Form(None),
+    mark_all: Optional[bool] = Form(False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if mark_all or notification_id is None:
+        db.query(Notification).filter(
+            Notification.user_id == user.id,
+            Notification.is_read == False
+        ).update({"is_read": True}, synchronize_session=False)
+    else:
+        db.query(Notification).filter(
+            Notification.user_id == user.id,
+            Notification.id == notification_id
+        ).update({"is_read": True}, synchronize_session=False)
+    db.commit()
+    return {"ok": True}
 
 #----------------------------------------
 # SCHEDULER SETUP

@@ -90,6 +90,21 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.project-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.project-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-indigo);
+  box-shadow: 0 16px 24px -8px rgba(0, 0, 0, 0.05);
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(15px);
@@ -165,15 +180,85 @@
 
   <section class="space-y-4">
     <div class="flex items-center justify-between px-2">
+      <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Projects</h3>
+      <div class="h-px bg-slate-100 flex-1 mx-4"></div>
+    </div>
+
+    {% if projects %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for project in projects %}
+      <div class="project-card p-5 rounded-2xl"
+           data-project-name="{{ project.name }}"
+           data-project-status="{{ project.status or 'active' }}"
+           data-project-department="{{ project.department or 'N/A' }}"
+           data-project-deadline="{{ project.deadline.strftime('%Y-%m-%d') if project.deadline else 'TBD' }}"
+           data-project-tasks="{{ project_task_counts.get(project.id, 0) }}"
+           data-project-description="{{ project.description or 'No description provided' }}">
+        <div class="flex items-center justify-between">
+          <h4 class="font-extrabold text-slate-900 text-sm tracking-tight">{{ project.name }}</h4>
+          <span class="text-[9px] font-black uppercase tracking-widest text-indigo-600">
+            {{ project.status or 'active' }}
+          </span>
+        </div>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-2">
+          Department: {{ project.department or 'N/A' }}
+        </p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+          Deadline: {{ project.deadline.strftime('%Y-%m-%d') if project.deadline else 'TBD' }}
+        </p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
+          Tasks: {{ project_task_counts.get(project.id, 0) }}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="italic text-slate-400 py-6">No projects assigned</p>
+    {% endif %}
+  </section>
+
+  <div id="projectDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-xl p-10 border border-slate-200 relative">
+      <div class="h-2 w-full bg-slate-900 absolute top-0 left-0"></div>
+      <button onclick="closeProjectModal()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-900">
+        <i class="bi bi-x-lg text-2xl"></i>
+      </button>
+
+      <div class="space-y-6">
+        <div>
+          <h3 id="projectModalName" class="text-3xl font-black uppercase tracking-tighter text-slate-900"></h3>
+          <p id="projectModalMeta" class="executive-mono text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-2"></p>
+        </div>
+
+        <div class="border border-slate-100 bg-slate-50 p-4">
+          <p class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Task Volume</p>
+          <div class="text-sm font-black text-slate-900 uppercase tracking-tight" id="projectModalTasks"></div>
+        </div>
+
+        <div class="border border-slate-100 bg-slate-50 p-4">
+          <p class="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Operational Scope</p>
+          <p id="projectModalDescription" class="text-sm text-slate-700 leading-relaxed"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="space-y-4">
+    <div class="flex items-center justify-between px-2">
       <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Collaborators</h3>
       <div class="h-px bg-slate-100 flex-1 mx-4"></div>
+      <select id="memberStatusFilter" class="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-white border border-slate-200 rounded px-3 py-2">
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
     </div>
 
     {% if members %}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {% for m in members %}
         {% if not leader or m.id != leader.id %}
-        <div class="member-card p-5 rounded-2xl flex items-center gap-4">
+        <div class="member-card p-5 rounded-2xl flex items-center gap-4" data-member-status="{{ 'active' if m.is_active else 'inactive' }}">
           <div class="member-avatar {% if m.active_leader %}leader-avatar{% endif %}">
             {{ m.name[0] }}
           </div>
@@ -212,5 +297,57 @@
 {% endif %}
 
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const filter = document.getElementById('memberStatusFilter');
+    if (!filter) return;
+
+    const cards = document.querySelectorAll('[data-member-status]');
+
+    function applyFilter() {
+      const value = filter.value;
+      cards.forEach(card => {
+        const status = card.getAttribute('data-member-status');
+        const shouldShow = value === 'all' || status === value;
+        card.style.display = shouldShow ? '' : 'none';
+      });
+    }
+
+    filter.addEventListener('change', applyFilter);
+    applyFilter();
+  });
+
+  function openProjectModal(card) {
+    const name = card.getAttribute('data-project-name') || '';
+    const status = card.getAttribute('data-project-status') || 'active';
+    const department = card.getAttribute('data-project-department') || 'N/A';
+    const deadline = card.getAttribute('data-project-deadline') || 'TBD';
+    const tasks = card.getAttribute('data-project-tasks') || '0';
+    const description = card.getAttribute('data-project-description') || 'No description provided';
+
+    document.getElementById('projectModalName').textContent = name;
+    document.getElementById('projectModalMeta').textContent = `Status: ${status} • Dept: ${department} • Deadline: ${deadline}`;
+    document.getElementById('projectModalTasks').textContent = `${tasks} tasks`;
+    document.getElementById('projectModalDescription').textContent = description;
+
+    document.getElementById('projectDetailModal').classList.remove('hidden');
+  }
+
+  function closeProjectModal() {
+    document.getElementById('projectDetailModal').classList.add('hidden');
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.project-card').forEach(card => {
+      card.addEventListener('click', function() {
+        openProjectModal(this);
+      });
+      card.addEventListener('touchstart', function() {
+        openProjectModal(this);
+      }, { passive: true });
+    });
+  });
+</script>
 
 {% endblock %}
