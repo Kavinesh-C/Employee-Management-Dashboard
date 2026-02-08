@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ subject }}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.15);">
+            <tr>
+              <td style="padding:24px 28px;background:#0f172a;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  {% if logo_url %}
+                  <img src="{{ logo_url }}" alt="{{ company_name }}" width="40" height="40" style="display:block;border-radius:8px;" />
+                  {% endif %}
+                  <div>
+                    <div style="color:#ffffff;font-size:16px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">{{ company_name }}</div>
+                    <div style="color:#94a3b8;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;">Workspace</div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:28px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px 0;">
+                  <tr>
+                    <td align="center">
+                      {% if employee_photo_url %}
+                        <img src="{{ employee_photo_url }}" alt="{{ employee_name }}" width="72" height="72" style="display:block;border-radius:18px;border:1px solid #e2e8f0;" />
+                      {% else %}
+                        <div style="width:72px;height:72px;background:#e2e8f0;border-radius:18px;display:inline-block;text-align:center;line-height:72px;font-size:28px;font-weight:800;color:#334155;">
+                          {{ employee_initial }}
+                        </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                </table>
+                {% block content %}{% endblock %}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 28px;background:#f8fafc;color:#64748b;font-size:12px;">
+                <div style="text-align:center;">&copy; {{ year }} {{ company_name }}. All rights reserved.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

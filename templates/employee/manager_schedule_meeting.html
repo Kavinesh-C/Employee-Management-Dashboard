@@ -1,0 +1,619 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Schedule Meeting{% endblock %}
+
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap');
+
+:root {
+  --ink: #0f172a;
+  --muted: #64748b;
+  --card: #ffffff;
+  --surface: #f8fafc;
+  --line: rgba(148, 163, 184, 0.4);
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-soft: rgba(20, 184, 166, 0.1);
+}
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background:
+    radial-gradient(900px 600px at 10% 0%, rgba(20, 184, 166, 0.08), transparent),
+    radial-gradient(700px 500px at 90% 10%, rgba(59, 130, 246, 0.08), transparent),
+    var(--surface);
+  color: var(--ink);
+}
+
+.page-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 3rem;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.page-subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.panel-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.form-grid {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+input, textarea, select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  background: #fff;
+  outline: none;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+}
+
+.action-btn {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+  padding: 0.8rem 1.6rem;
+  border-radius: 999px;
+  border: none;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+}
+
+.action-btn:hover {
+  background: var(--accent-strong);
+}
+
+.assignee-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.assignee-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.assignee-check {
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.meeting-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.1rem 1.2rem;
+  background: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.meeting-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+}
+
+.status-pill {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 800;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+}
+
+.status-upcoming { background: rgba(59, 130, 246, 0.1); color: #1d4ed8; }
+.status-ongoing { background: rgba(16, 185, 129, 0.12); color: #047857; }
+.status-completed { background: rgba(148, 163, 184, 0.2); color: #475569; }
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.filter-pill {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.filter-pill.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.modal-backdrop {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.scroll-box {
+  max-height: 90px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.meeting-list {
+  max-height: 520px;
+  overflow-y: auto;
+}
+</style>
+
+<div class="page-shell space-y-8">
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="page-title">Schedule Meeting</h1>
+      <p class="page-subtitle">Create new meetings and track upcoming sessions.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <section class="panel lg:col-span-5">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">New Session</div>
+          <div class="mono">Auto-generated secure meeting link</div>
+        </div>
+      </div>
+      <form action="/manager/create_meeting" method="POST" class="form-grid" id="scheduleMeetingForm">
+        <div>
+          <label class="label">Session Title</label>
+          <input type="text" name="title" required placeholder="Quarterly planning sync">
+        </div>
+        <div>
+          <label class="label">Agenda Outline</label>
+          <textarea name="description" rows="3" placeholder="Agenda highlights..."></textarea>
+        </div>
+        <div>
+          <label class="label">Date & Time</label>
+          <input type="datetime-local" name="meeting_datetime" required>
+        </div>
+        <div>
+          <label class="label">Project Context</label>
+          <select name="project_id">
+            <option value="">-- General --</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="label">Participants</label>
+          <input id="meetingAssigneeSearch" type="text" placeholder="Filter by name or ID">
+          <div id="meetingAssigneeCards" class="hidden mt-3 space-y-2 max-h-52 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3"></div>
+          <input type="hidden" id="meetingAssignees" name="assignees" value="">
+        </div>
+        <div>
+          <label class="label">Meeting Link</label>
+          <div class="flex flex-col gap-2">
+            <input id="meetingLinkPreview" type="text" readonly>
+            <div class="flex justify-between items-center">
+              <span class="mono">Auto-generated and saved with the meeting</span>
+              <button type="button" id="regenerateMeetingLink" class="mono">Regenerate</button>
+            </div>
+          </div>
+          <input type="hidden" id="meetingLinkInput" name="meeting_link" value="">
+          <input type="hidden" id="meetingRoomInput" name="room_name" value="">
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="action-btn">Schedule Meeting</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel lg:col-span-7">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Your Meetings</div>
+          <div class="mono">Latest first</div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="filter-pill active" data-filter="all">All</button>
+          <button type="button" class="filter-pill" data-filter="upcoming">Future</button>
+          <button type="button" class="filter-pill" data-filter="ongoing">Ongoing</button>
+          <button type="button" class="filter-pill" data-filter="completed">Past</button>
+        </div>
+      </div>
+      <div class="p-6 space-y-4 meeting-list">
+        {% for meeting in meetings %}
+        <div class="meeting-card" data-status="{{ meeting.status | lower }}"
+             data-title="{{ meeting.title | e }}"
+             data-datetime="{{ meeting.meeting_datetime | e }}"
+             data-project="{{ meeting.project_name | e }}"
+             data-description="{{ meeting.description | e }}"
+             data-link="{{ meeting.meeting_link | e }}"
+             data-organizer="{{ meeting.organizer | e }}"
+             data-attendees="{{ meeting.attendees | e }}"
+             data-assignees="{{ meeting.assignees | e }}"
+             data-attended="{{ meeting.attended | e }}"
+             data-not-attended="{{ meeting.not_attended | e }}">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-lg font-bold">{{ meeting.title }}</div>
+              <div class="mono">{{ meeting.meeting_datetime }} · {{ meeting.project_name }}</div>
+            </div>
+            <span class="status-pill status-{{ meeting.status | lower }}">{{ meeting.status }}</span>
+          </div>
+          <p class="text-sm text-slate-600 mt-3">{{ meeting.description or "No description" }}</p>
+          <p class="text-sm text-slate-500 mt-2">Attendees: {{ meeting.assignees }}</p>
+          {% if meeting.meeting_link %}
+          <a href="{{ meeting.meeting_link }}" target="_blank" class="inline-flex items-center mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-900">
+            Join meeting
+          </a>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="text-sm text-slate-500 border border-dashed rounded-xl p-6 text-center">No meetings scheduled yet.</div>
+        {% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+<div id="meetingDetailModal" class="fixed inset-0 hidden items-center justify-center">
+  <div class="absolute inset-0 modal-backdrop" id="meetingDetailBackdrop"></div>
+  <div class="relative bg-white rounded-2xl w-full max-w-2xl mx-4 shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+      <div>
+        <div class="panel-title">Meeting Details</div>
+        <div class="text-lg font-bold" id="detailTitle"></div>
+        <div class="mono" id="detailMeta"></div>
+      </div>
+      <button type="button" id="closeMeetingDetail" class="mono">Close</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <div class="label">Description</div>
+        <div class="text-sm text-slate-700" id="detailDescription"></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded-xl p-4 bg-slate-50/60">
+          <div class="label">Sender</div>
+          <div class="text-sm font-medium" id="detailOrganizer"></div>
+        </div>
+        <div class="border rounded-xl p-4 bg-slate-50/60">
+          <div class="label">Sent To</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailAssignees"></div>
+            <button type="button" class="mono" id="viewAssigneesBtn">View all</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="border rounded-xl p-4 bg-emerald-50/60">
+          <div class="label">Attended</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailAttended"></div>
+            <button type="button" class="mono" id="viewAttendedBtn">View all</button>
+          </div>
+        </div>
+        <div class="border rounded-xl p-4 bg-rose-50/60">
+          <div class="label">Not Attended</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailNotAttended"></div>
+            <button type="button" class="mono" id="viewNotAttendedBtn">View all</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="label">Meeting Link</div>
+        <a id="detailLink" href="#" target="_blank" class="text-sm text-emerald-700 font-semibold hover:underline break-all"></a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="meetingListModal" class="fixed inset-0 hidden items-center justify-center">
+  <div class="absolute inset-0 modal-backdrop" id="meetingListBackdrop"></div>
+  <div class="relative bg-white rounded-2xl w-full max-w-lg mx-4 shadow-2xl">
+    <div class="px-6 py-5 border-b border-slate-200 flex items-center justify-between">
+      <div class="panel-title" id="meetingListTitle">Participants</div>
+      <button type="button" id="closeMeetingList" class="mono">Close</button>
+    </div>
+    <div class="p-6">
+      <ul id="meetingListItems" class="space-y-2 text-sm text-slate-700 max-h-72 overflow-y-auto"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const meetingSearch = document.getElementById('meetingAssigneeSearch');
+const meetingCards = document.getElementById('meetingAssigneeCards');
+const meetingAssigneesInput = document.getElementById('meetingAssignees');
+const selectedIds = new Set();
+let searchTimer = null;
+
+function renderMeetingResults(items) {
+  if (!meetingCards) return;
+  meetingCards.innerHTML = '';
+  if (!items.length) {
+    meetingCards.classList.add('hidden');
+    return;
+  }
+  items.forEach(emp => {
+    const card = document.createElement('div');
+    card.className = 'assignee-card meeting-assignee-card';
+    card.dataset.empId = emp.employee_id;
+    card.dataset.empName = emp.name;
+    if (selectedIds.has(emp.employee_id)) {
+      card.classList.add('active');
+    }
+
+    const left = document.createElement('div');
+    left.innerHTML = `${emp.name} <span class="mono">#${emp.employee_id}</span>`;
+    const check = document.createElement('div');
+    check.className = 'assignee-check' + (selectedIds.has(emp.employee_id) ? '' : ' hidden');
+    check.textContent = '✓';
+
+    card.appendChild(left);
+    card.appendChild(check);
+
+    card.addEventListener('click', () => {
+      const id = emp.employee_id;
+      if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        card.classList.remove('active');
+        check.classList.add('hidden');
+      } else {
+        selectedIds.add(id);
+        card.classList.add('active');
+        check.classList.remove('hidden');
+      }
+      meetingAssigneesInput.value = Array.from(selectedIds).join(',');
+    });
+
+    meetingCards.appendChild(card);
+  });
+  meetingCards.classList.remove('hidden');
+}
+
+async function fetchParticipants(term) {
+  const response = await fetch(`/manager/participant_search?q=${encodeURIComponent(term)}`);
+  if (!response.ok) return [];
+  return await response.json();
+}
+
+if (meetingSearch) {
+  meetingSearch.addEventListener('input', () => {
+    const term = meetingSearch.value.trim();
+    if (!term) {
+      meetingCards.classList.add('hidden');
+      return;
+    }
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+    }
+    searchTimer = setTimeout(async () => {
+      const results = await fetchParticipants(term);
+      renderMeetingResults(Array.isArray(results) ? results : []);
+    }, 200);
+  });
+}
+
+function generateMeetingLink() {
+  const base = 'https://meet.jit.si/';
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  const room = `teamsync_${timestamp}_${random}`;
+  return { room, link: `${base}${room}` };
+}
+
+const meetingLinkPreview = document.getElementById('meetingLinkPreview');
+const meetingLinkInput = document.getElementById('meetingLinkInput');
+const meetingRoomInput = document.getElementById('meetingRoomInput');
+const regenerateBtn = document.getElementById('regenerateMeetingLink');
+
+function refreshMeetingLink() {
+  const data = generateMeetingLink();
+  if (meetingLinkPreview) meetingLinkPreview.value = data.link;
+  if (meetingLinkInput) meetingLinkInput.value = data.link;
+  if (meetingRoomInput) meetingRoomInput.value = data.room;
+}
+
+refreshMeetingLink();
+if (regenerateBtn) {
+  regenerateBtn.addEventListener('click', refreshMeetingLink);
+}
+
+const today = new Date().toISOString().split('T')[0];
+document.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(input => {
+  input.min = input.type === 'date' ? today : today + 'T00:00';
+});
+
+const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+const meetingCardsList = Array.from(document.querySelectorAll('.meeting-card'));
+
+function applyFilter(status) {
+  meetingCardsList.forEach(card => {
+    const cardStatus = card.dataset.status || '';
+    if (status === 'all' || cardStatus === status) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilter(btn.dataset.filter || 'all');
+  });
+});
+
+const detailModal = document.getElementById('meetingDetailModal');
+const detailBackdrop = document.getElementById('meetingDetailBackdrop');
+const detailClose = document.getElementById('closeMeetingDetail');
+const meetingListModal = document.getElementById('meetingListModal');
+const meetingListBackdrop = document.getElementById('meetingListBackdrop');
+const meetingListClose = document.getElementById('closeMeetingList');
+const meetingListTitle = document.getElementById('meetingListTitle');
+const meetingListItems = document.getElementById('meetingListItems');
+const viewAssigneesBtn = document.getElementById('viewAssigneesBtn');
+const viewAttendedBtn = document.getElementById('viewAttendedBtn');
+const viewNotAttendedBtn = document.getElementById('viewNotAttendedBtn');
+
+let currentAssignees = [];
+let currentAttended = [];
+let currentNotAttended = [];
+
+function parseList(value) {
+  return (value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function summarizeList(list) {
+  if (!list.length) return '-';
+  if (list.length <= 2) return list.join(', ');
+  return `${list[0]}, ${list[1]} +${list.length - 2}`;
+}
+
+function openListModal(title, list) {
+  if (!meetingListModal || !meetingListItems || !meetingListTitle) return;
+  meetingListTitle.textContent = title;
+  meetingListItems.innerHTML = '';
+  if (!list.length) {
+    const li = document.createElement('li');
+    li.className = 'text-slate-400 italic';
+    li.textContent = 'No participants.';
+    meetingListItems.appendChild(li);
+  } else {
+    list.forEach(name => {
+      const li = document.createElement('li');
+      li.className = 'p-3 bg-slate-50 border border-slate-100 rounded-lg font-semibold';
+      li.textContent = name;
+      meetingListItems.appendChild(li);
+    });
+  }
+  meetingListModal.classList.remove('hidden');
+  meetingListModal.classList.add('flex');
+}
+
+function openDetail(card) {
+  document.getElementById('detailTitle').textContent = card.dataset.title || '-';
+  document.getElementById('detailMeta').textContent = `${card.dataset.datetime || ''} · ${card.dataset.project || ''}`.trim();
+  document.getElementById('detailDescription').textContent = card.dataset.description || '-';
+  document.getElementById('detailOrganizer').textContent = card.dataset.organizer || '-';
+  currentAssignees = parseList(card.dataset.assignees);
+  currentAttended = parseList(card.dataset.attended);
+  currentNotAttended = parseList(card.dataset.notAttended);
+  document.getElementById('detailAssignees').textContent = summarizeList(currentAssignees);
+  document.getElementById('detailAttended').textContent = summarizeList(currentAttended);
+  document.getElementById('detailNotAttended').textContent = summarizeList(currentNotAttended);
+  const link = card.dataset.link || '';
+  const linkEl = document.getElementById('detailLink');
+  linkEl.textContent = link || '-';
+  linkEl.href = link || '#';
+  if (!link) {
+    linkEl.classList.add('pointer-events-none');
+  } else {
+    linkEl.classList.remove('pointer-events-none');
+  }
+  detailModal.classList.remove('hidden');
+  detailModal.classList.add('flex');
+}
+
+function closeDetail() {
+  detailModal.classList.add('hidden');
+  detailModal.classList.remove('flex');
+}
+
+function closeListModal() {
+  meetingListModal.classList.add('hidden');
+  meetingListModal.classList.remove('flex');
+}
+
+meetingCardsList.forEach(card => {
+  card.addEventListener('click', () => openDetail(card));
+});
+
+if (detailBackdrop) detailBackdrop.addEventListener('click', closeDetail);
+if (detailClose) detailClose.addEventListener('click', closeDetail);
+if (meetingListBackdrop) meetingListBackdrop.addEventListener('click', closeListModal);
+if (meetingListClose) meetingListClose.addEventListener('click', closeListModal);
+if (viewAssigneesBtn) viewAssigneesBtn.addEventListener('click', () => openListModal('Sent To', currentAssignees));
+if (viewAttendedBtn) viewAttendedBtn.addEventListener('click', () => openListModal('Attended', currentAttended));
+if (viewNotAttendedBtn) viewNotAttendedBtn.addEventListener('click', () => openListModal('Not Attended', currentNotAttended));
+
+const urlParams = new URLSearchParams(window.location.search);
+const emailStatus = urlParams.get('email');
+if (emailStatus === 'sent') {
+  window.showToast?.('Meeting emails sent.', 'success');
+  urlParams.delete('email');
+} else if (emailStatus === 'disabled') {
+  window.showToast?.('Meeting emails not sent. Check SMTP settings.', 'warning');
+  urlParams.delete('email');
+}
+if (!urlParams.has('email')) {
+  const newUrl = `${window.location.pathname}${urlParams.toString() ? `?${urlParams}` : ''}`;
+  window.history.replaceState({}, '', newUrl);
+}
+</script>
+{% endblock %}

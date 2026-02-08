@@ -1,0 +1,387 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Projects Management{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --accent-navy: #0B1127; /* Your exact color match */
+  --bg-main: #f8fafc;
+  --border-color: #e2e8f0;
+  --radius-standard: 0.75rem;
+  --accent-emerald: #10b981;
+}
+
+body {
+  background-color: var(--bg-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1e293b;
+}
+
+/* TOP COMMAND BAR - Consistent with Console */
+.command-bar {
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 2.5rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+.heading-exec {
+  font-size: 3.5rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--accent-navy);
+}
+
+.label-mono {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+/* ARCHITECTURAL CARDS */
+.exec-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-standard);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+/* PROJECT SPECIFIC UI */
+.project-card {
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.project-card:hover {
+  background: #f8fafc;
+  border-left-color: #cbd5e1;
+}
+
+.project-card.active {
+  background: #f1f5f9;
+  border-left-color: var(--accent-navy);
+}
+
+.project-status {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.status-active { background: #ecfdf5; color: #059669; }
+.status-completed { background: #f1f5f9; color: var(--accent-navy); }
+.status-pending { background: #fffbeb; color: #d97706; }
+
+/* STAT BOXES */
+.stat-box {
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-standard);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--accent-navy);
+}
+
+/* BUTTONS */
+.btn-exec {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: var(--radius-standard);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary { background: var(--accent-navy); color: white; border: none; }
+.btn-outline { border: 1px solid var(--border-color); background: transparent; color: var(--accent-navy); }
+
+/* TAGS */
+.employee-tag {
+  background: #f1f5f9;
+  color: var(--accent-navy);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* SEARCH & FILTERS */
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-standard);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.search-input:focus { border-color: var(--accent-navy); ring: 2px solid #e2e8f0; }
+
+.filter-tab {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.filter-tab.active {
+  background: var(--accent-navy);
+  color: white;
+}
+
+.reveal-in {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="command-bar flex flex-col lg:flex-row justify-between items-end gap-6">
+    <div>
+        
+        <h1 class="heading-exec">Project Matrix</h1>
+    </div>
+    
+    <div class="flex items-center gap-3 mb-2">
+        <a href="/manager/dashboard" class="btn-exec btn-outline">← Exit to Console</a>
+    </div>
+</div>
+
+<div class="max-w-[1600px] mx-auto p-8">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <div class="lg:col-span-4 space-y-6 reveal-in">
+      <div class="exec-card flex flex-col">
+        <div class="p-6 border-b space-y-4">
+          <input type="text" id="projectSearch" class="search-input" placeholder="SEARCH PROJECTS...">
+          <div class="flex gap-2">
+            <button class="filter-tab active" onclick="filterProjects('all')">All</button>
+            <button class="filter-tab" onclick="filterProjects('active')">Active</button>
+            <button class="filter-tab" onclick="filterProjects('completed')">Completed</button>
+          </div>
+        </div>
+        
+        <div class="divide-y overflow-y-auto max-h-[600px]" id="projectsList">
+          {% for project in projects %}
+          <div class="project-card project-option" 
+               data-project-id="{{ project.id }}"
+               data-project-name="{{ project.name }}"
+               data-project-status="{{ project.status }}">
+            <div class="flex justify-between items-start mb-2">
+              <span class="font-bold text-slate-900">{{ project.name }}</span>
+              <span class="project-status {% if project.status == 'active' %}status-active{% elif project.status == 'completed' %}status-completed{% else %}status-pending{% endif %}">
+                {{ project.status }}
+              </span>
+            </div>
+            <div class="flex gap-4">
+               <span class="label-mono text-[10px]">Tasks: <span id="tasks-{{ project.id }}" class="text-slate-900">-</span></span>
+               <span class="label-mono text-[10px]">Personnel: <span id="employees-{{ project.id }}" class="text-slate-900">-</span></span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:col-span-8 space-y-6 reveal-in" style="animation-delay: 0.1s">
+      <div id="noSelectionPanel" class="exec-card p-20 text-center">
+        <div class="label-mono opacity-20 text-4xl mb-4">No Project Selected</div>
+        <p class="label-mono">Initialize view by selecting a record from the matrix</p>
+      </div>
+
+      <div id="detailPanel" class="hidden space-y-6">
+        <div class="grid grid-cols-3 gap-6">
+          <div class="stat-box">
+            <div class="label-mono mb-2">Task Volume</div>
+            <div class="stat-value" id="detail-tasks">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label-mono mb-2">Team Size</div>
+            <div class="stat-value" id="detail-employees">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="label-mono mb-2">Operational State</div>
+            <div id="detail-status" class="font-black uppercase text-xl">--</div>
+          </div>
+        </div>
+
+        <div class="exec-card">
+          <div class="p-4 bg-slate-50 border-b">
+            <span class="label-mono">Operational Scope</span>
+          </div>
+          <div class="p-8">
+            <p id="detail-description" class="text-slate-600 leading-relaxed text-lg"></p>
+            <div id="detail-created" class="mt-6 font-mono text-xs text-slate-400"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="exec-card">
+              <div class="p-4 bg-slate-50 border-b">
+                <span class="label-mono">Deployed Personnel</span>
+              </div>
+              <div class="p-6 flex flex-wrap gap-2" id="detail-employees-list"></div>
+            </div>
+
+            <div class="exec-card">
+              <div class="p-4 bg-slate-50 border-b">
+                <span class="label-mono">Deployment Log</span>
+              </div>
+              <div class="p-6" id="detail-tasks-list">
+                <div class="p-4 border border-dashed border-slate-200 rounded-lg text-center label-mono text-[10px]">
+                    Project specific tasks synchronized in Team Unit module
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+let allProjects = [];
+let selectedProjectId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Set up project card click handlers
+  document.querySelectorAll('.project-option').forEach(card => {
+    card.addEventListener('click', function() {
+      selectProject(parseInt(this.getAttribute('data-project-id')));
+    });
+  });
+  
+  // Fetch all projects data
+  fetch('/api/all_projects')
+    .then(res => res.json())
+    .then(data => {
+      allProjects = data;
+      populateProjectData();
+    })
+    .catch(err => console.error('Error fetching projects:', err));
+  
+  // Search functionality
+  document.getElementById('projectSearch').addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase();
+    document.querySelectorAll('.project-option').forEach(card => {
+      const name = card.getAttribute('data-project-name').toLowerCase();
+      card.style.display = name.includes(query) ? 'flex' : 'none';
+    });
+  });
+});
+
+function populateProjectData() {
+  allProjects.forEach(project => {
+    const cardTasks = document.getElementById('tasks-' + project.id);
+    const cardEmps = document.getElementById('employees-' + project.id);
+    const projEmps = document.getElementById('proj-emps-' + project.id);
+    
+    if (cardTasks) cardTasks.textContent = project.task_count;
+    if (cardEmps) cardEmps.textContent = project.employee_count;
+    
+    if (projEmps && project.assigned_employees.length > 0) {
+      projEmps.innerHTML = project.assigned_employees.slice(0, 3).map(emp => 
+        '<div class="employee-tag">' + emp + '</div>'
+      ).join('');
+      if (project.assigned_employees.length > 3) {
+        projEmps.innerHTML += '<div class="employee-tag">+' + (project.assigned_employees.length - 3) + ' more</div>';
+      }
+    }
+  });
+}
+
+function selectProject(projectId) {
+  selectedProjectId = projectId;
+  
+  // Update active card
+  document.querySelectorAll('.project-card').forEach(card => {
+    card.classList.remove('active');
+  });
+  document.querySelector('[data-project-id="' + projectId + '"]').classList.add('active');
+  
+  // Show detail panel
+  document.getElementById('detailPanel').classList.remove('hidden');
+  document.getElementById('noSelectionPanel').classList.add('hidden');
+  
+  // Find project data
+  const project = allProjects.find(p => p.id === projectId);
+  if (!project) return;
+  
+  // Populate detail panel
+  document.getElementById('detail-tasks').textContent = project.task_count;
+  document.getElementById('detail-employees').textContent = project.employee_count;
+  document.getElementById('detail-status').textContent = project.status.toUpperCase().charAt(0) + project.status.slice(1);
+  document.getElementById('detail-description').textContent = project.description || 'No description provided';
+  
+  const createdDate = new Date(project.created_at);
+  document.getElementById('detail-created').textContent = 
+    'Created on ' + createdDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  
+  // Populate employees
+  const empList = document.getElementById('detail-employees-list');
+  if (project.assigned_employees.length > 0) {
+    empList.innerHTML = project.assigned_employees.map(emp => 
+      '<div class="employee-tag">' + emp + '</div>'
+    ).join('');
+  } else {
+    empList.innerHTML = '<p class="text-sm text-slate-500">No employees assigned to this project</p>';
+  }
+  
+  // Populate tasks (placeholder - would need task details from API)
+  const taskList = document.getElementById('detail-tasks-list');
+  if (project.task_count > 0) {
+    taskList.innerHTML = '<div class="task-item">📌 View detailed task list by going to the team overview page</div>';
+  } else {
+    taskList.innerHTML = '<p class="text-sm text-slate-500">No tasks in this project</p>';
+  }
+}
+
+function filterProjects(status) {
+  // Update active tab
+  document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  
+  // Filter projects
+  document.querySelectorAll('.project-option').forEach(card => {
+    const cardStatus = card.getAttribute('data-project-status');
+    if (status === 'all' || cardStatus === status) {
+      card.style.display = 'flex';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+</script>
+{% endblock %}

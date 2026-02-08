@@ -1,0 +1,103 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}{{ meeting.title }} - Video Meeting{% endblock %}
+
+{% block content %}
+<style>
+  html, body {
+    height: 100%;
+  }
+
+  main.main-canvas > header,
+  main.main-canvas > footer {
+    display: none;
+  }
+
+  .sidebar-fixed,
+  aside {
+    display: none !important;
+  }
+
+  .main-canvas {
+    margin-left: 0 !important;
+  }
+
+  main.main-canvas > section {
+    padding: 0 !important;
+  }
+
+  main.main-canvas {
+    height: 100vh;
+  }
+
+  .meeting-fullscreen {
+    width: 100vw;
+    height: 100vh;
+    background: #202124;
+  }
+
+  #jitsi-container {
+    width: 100%;
+    height: 100%;
+  }
+</style>
+
+<div class="meeting-fullscreen">
+  <div id="jitsi-container"></div>
+</div>
+
+<script src="https://meet.jit.si/external_api.js"></script>
+<script>
+  const domain = 'meet.jit.si';
+  const options = {
+    roomName: '{{ meeting.room_name }}',
+    width: '100%',
+    height: '100%',
+    parentNode: document.querySelector('#jitsi-container'),
+    userInfo: {
+      displayName: '{{ user.name }} ({{ user.employee_id }})'
+    },
+    configOverwrite: {
+      enableWelcomePage: false,
+      prejoinPageEnabled: true,
+      startAudioMuted: 10,
+      startVideoMuted: 10,
+      p2p: { enabled: false },
+      resolution: 1080,
+      preferredVideoQuality: 1080,
+      videoQuality: {
+        preferredCodec: 'VP9',
+        maxBitratesVideo: 1800
+      },
+      constraints: {
+        video: {
+          height: {
+            ideal: 1080,
+            max: 1080,
+            min: 720
+          },
+          width: {
+            ideal: 1920,
+            max: 1920,
+            min: 1280
+          },
+          aspectRatio: 16 / 9
+        }
+      }
+    },
+    interfaceConfigOverwrite: {
+      SHOW_JITSI_WATERMARK: false,
+      SHOW_WATERMARK_FOR_GUESTS: false,
+      DEFAULT_BACKGROUND: '#202124',
+      TOOLBAR_BUTTONS: [
+        'microphone', 'camera', 'desktop', 'chat', 'participants-pane',
+        'raisehand', 'tileview', 'fullscreen', 'settings', 'hangup',
+        'recording', 'livestreaming', 'sharedvideo', 'mute-everyone',
+        'security', 'shortcuts', 'help', 'feedback'
+      ]
+    }
+  };
+
+  new JitsiMeetExternalAPI(domain, options);
+</script>
+{% endblock %}

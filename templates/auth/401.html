@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>Protocol Violation | TeamSync</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        :root {
+            --err-red: #ef4444;
+            --bg-black: #000000;
+            --border-slate: #262626;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Security Scanner Animation */
+        .scanner-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--err-red);
+            box-shadow: 0 0 15px var(--err-red);
+            animation: scan 3s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        .stark-border {
+            border: 1px solid var(--border-slate);
+            background: #0a0a0a;
+            position: relative;
+            z-index: 10;
+        }
+
+        .glitch-text {
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+        }
+
+        .btn-return {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s ease;
+        }
+
+        .btn-return:hover {
+            background: var(--err-red);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanner-line"></div>
+
+    <div class="max-w-2xl w-full p-12 stark-border text-center space-y-8">
+        
+        <div class="flex justify-center">
+            <div class="w-16 h-16 border-2 border-red-500 flex items-center justify-center text-red-500 animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <h1 class="text-6xl font-black glitch-text leading-none">Access_Denied</h1>
+            <p class="mono text-red-500 text-xs uppercase tracking-widest pt-2">Error Protocol: 403 // Authorization_Failure</p>
+        </div>
+
+        <div class="space-y-4">
+            <p class="text-slate-400 text-sm font-medium leading-relaxed max-w-md mx-auto">
+                Session token expired or invalidated. Manual navigation to protected routes after termination is strictly prohibited by security policy.
+            </p>
+            <div class="mono text-[10px] text-slate-600 bg-black/50 py-2 rounded">
+                IP_LOGGED // ATTEMPT_ID: {{ range(10000, 99999)|random }}
+            </div>
+        </div>
+
+        <div class="pt-6">
+            <a href="/" class="btn-return px-10 py-4 inline-block text-xs">
+                Return to Login Terminal
+            </a>
+        </div>
+
+    </div>
+
+    <div class="fixed bottom-8 w-full text-center">
+        <p class="mono text-[10px] text-slate-700 uppercase tracking-[0.4em]">TeamSync Global Security Infrastructure</p>
+    </div>
+
+</body>
+</html>

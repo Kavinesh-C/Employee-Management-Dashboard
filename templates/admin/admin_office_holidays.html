@@ -1,0 +1,117 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Office Holidays | TeamSync{% endblock %}
+
+{% block page_title %}Management / Office Holidays{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-10 px-6">
+  
+  <header class="mb-12 border-b border-slate-900 pb-8 flex justify-between items-end">
+    <div>
+      <nav class="mb-4">
+        <a href="/admin" class="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 transition-colors">
+          ← Back to Dashboard
+        </a>
+      </nav>
+      <h1 class="text-5xl font-black tracking-tighter text-slate-900 uppercase">
+        Holidays<span class="text-blue-600">.</span>
+      </h1>
+    </div>
+    <div class="text-right hidden md:block">
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Organization Policy</p>
+      <p class="text-sm font-medium text-slate-600">Standard Operating Calendar</p>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-16">
+    
+    <div class="lg:col-span-5">
+      <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-slate-900 mb-8 border-l-4 border-blue-600 pl-4">
+        {{ 'Update Holiday' if edit_event else 'Add New Holiday' }}
+      </h2>
+
+      <form method="post" action="/admin/office_holidays" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token','') }}">
+        {% if edit_event %}
+        <input type="hidden" name="event_id" value="{{ edit_event.id }}">
+        {% endif %}
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Date</label>
+          <input type="date" name="date" value="{{ edit_event.event_date if edit_event else '' }}" 
+            class="w-full rounded-none border-b-2 border-slate-200 py-3 text-lg font-medium focus:border-slate-900 outline-none transition-all bg-transparent" required />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Holiday Title</label>
+          <input name="title" value="{{ edit_event.title if edit_event else '' }}" 
+            class="w-full rounded-none border-b-2 border-slate-200 py-3 text-lg font-medium focus:border-slate-900 outline-none transition-all bg-transparent" 
+            placeholder="e.g. New Year's Day" required />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-slate-400">Notes (Optional)</label>
+          <textarea name="notes" rows="2" 
+            class="w-full rounded-none border-b-2 border-slate-200 py-3 text-sm focus:border-slate-900 outline-none transition-all bg-transparent resize-none" 
+            placeholder="Additional details...">{{ edit_event.notes if edit_event else '' }}</textarea>
+        </div>
+
+        <div class="pt-6 flex items-center gap-6">
+          <button class="bg-slate-900 text-white px-10 py-4 text-xs font-bold uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-blue-100" type="submit">
+            {{ 'Save Changes' if edit_event else 'Add to Calendar' }}
+          </button>
+          {% if edit_event %}
+          <a href="/admin/office_holidays" class="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-red-500">Cancel</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
+    <div class="lg:col-span-7">
+      <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-8">Scheduled Dates</h2>
+      
+      <div class="space-y-px bg-slate-200 border border-slate-200 shadow-2xl shadow-slate-200/50">
+        {% for h in holidays %}
+        <div class="bg-white p-6 flex items-center justify-between group transition-all hover:bg-slate-50">
+          <div class="flex items-center gap-8">
+            <div class="text-center min-w-[60px] border-r border-slate-100 pr-6">
+              <span class="block text-2xl font-black text-slate-900 tracking-tighter leading-none">
+                {{ h.event_date.strftime('%d') }}
+              </span>
+              <span class="text-[10px] font-bold uppercase text-blue-600 tracking-widest">
+                {{ h.event_date.strftime('%b') }}
+              </span>
+            </div>
+            <div>
+              <p class="font-bold text-slate-900 uppercase tracking-tight text-sm">{{ h.title }}</p>
+              <p class="text-[10px] font-mono text-slate-400 uppercase tracking-widest">{{ h.event_date.strftime('%Y') }}</p>
+              {% if h.notes %}
+              <p class="text-xs text-slate-500 mt-2 italic border-l-2 border-slate-100 pl-3 leading-relaxed">{{ h.notes }}</p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all">
+            <a href="/admin/office_holidays?edit_id={{ h.id }}" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 border border-slate-200 px-3 py-1">
+              Edit
+            </a>
+            <form method="post" action="/admin/office_holidays/delete" data-confirm="Remove this holiday?">
+              <input type="hidden" name="csrf_token" value="{{ request.cookies.get('csrf_token','') }}">
+              <input type="hidden" name="event_id" value="{{ h.id }}">
+              <button class="text-[10px] font-black uppercase tracking-widest text-red-400 hover:text-white hover:bg-red-500 border border-red-100 px-3 py-1 transition-colors">
+                Delete
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="bg-white p-20 text-center">
+          <p class="text-xs font-bold uppercase tracking-[0.3em] text-slate-300">No Holidays Scheduled</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

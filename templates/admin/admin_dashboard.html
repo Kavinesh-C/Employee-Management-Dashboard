@@ -1,0 +1,432 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Command Center | TeamSync{% endblock %}
+
+{% block page_title %}COMMAND_CENTER{% endblock %}
+
+{% block content %}
+<div class="border border-[var(--border)] bg-[var(--panel)] p-6 mb-8 flex items-center justify-between">
+  <div class="flex items-center gap-4">
+    {% if user.photo_blob %}
+      <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="w-14 h-14 rounded-2xl object-cover border border-slate-200" />
+    {% elif user.photo_path %}
+      <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="w-14 h-14 rounded-2xl object-cover border border-slate-200" />
+    {% else %}
+      <div class="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-xl font-black">
+        {{ user.name[0]|upper }}
+      </div>
+    {% endif %}
+    <div>
+      <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Admin</div>
+      <div class="text-lg font-black text-slate-900">{{ user.name }}</div>
+      <div class="text-[10px] text-slate-400">ID - {{ user.employee_id }}</div>
+    </div>
+  </div>
+  <div class="text-right text-[10px] font-black uppercase tracking-widest text-slate-400">
+    Command Center
+  </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
+
+  <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
+    <div class="flex justify-between items-start">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">No. of Employees</p>
+        <p class="text-5xl font-black tracking-tighter">{{ employees|length }}</p>
+      </div>
+      <div class="w-12 h-12 bg-blue-50 flex items-center justify-center text-blue-600">
+          <i class="bi bi-people-fill text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
+    <div class="flex justify-between items-start">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Blocks Occupied</p>
+        <p class="text-5xl font-black tracking-tighter">{{ blocks|length }}</p>
+      </div>
+      <div class="w-12 h-12 bg-slate-50 flex items-center justify-center text-slate-600">
+          <i class="bi bi-building-fill text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
+    <div class="flex justify-between items-start">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">RFID Alerts</p>
+        <p class="text-5xl font-black tracking-tighter {% if unknown_rfids %}text-red-600{% endif %}">{{ unknown_rfids|length }}</p>
+      </div>
+      <div class="w-12 h-12 {% if unknown_rfids %}bg-red-50 text-red-600{% else %}bg-slate-50 text-slate-600{% endif %} flex items-center justify-center">
+          <i class="bi bi-broadcast-pin text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8 lg:col-span-2">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="h-5 w-1 bg-blue-600"></div>
+        <h2 class="text-xs font-black uppercase tracking-[0.3em]">Blocks Visualization</h2>
+    </div>
+
+    {% if blocks %}
+    <div class="grid md:grid-cols-2 gap-4">
+      {% for block in blocks %}
+      <div onclick="openModal('{{block.location_name}}','{{block.room_no}}',{{block.count}})"
+           class="p-6 border border-[var(--border)] hover:border-blue-600 transition cursor-pointer group bg-[var(--bg)]">
+        <div class="flex justify-between items-end mb-4">
+          <div>
+            <h4 class="text-sm font-black uppercase tracking-tight">{{ block.location_name }}</h4>
+            <p class="executive-mono text-slate-500">ROOM_{{ block.room_no }}</p>
+          </div>
+          <span class="text-3xl font-black text-blue-600">{{ block.count }}</span>
+        </div>
+        <div class="h-1 w-full bg-slate-100">
+          <div class="h-full bg-blue-600" style="width: calc({{ block.count }} * 10%)"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 border border-dashed border-slate-200 text-center">
+        <p class="executive-mono text-slate-400 uppercase tracking-widest text-[10px]">No active room data available</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="h-5 w-1 bg-blue-600"></div>
+        <h2 class="text-xs font-black uppercase tracking-[0.3em]">Payroll Distribution</h2>
+    </div>
+    <div class="relative h-[250px]">
+        <canvas id="payrollChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-12">
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="h-5 w-1 bg-blue-600"></div>
+        <h2 class="text-xs font-black uppercase tracking-[0.3em]">Recent Attendance Sync</h2>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b border-[var(--border)] text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <th class="pb-4">Personnel</th>
+                    <th class="pb-4">Department</th>
+                    <th class="pb-4 text-right">Total Hours</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-[var(--border)]">
+                {% for emp in employees %}
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="py-4 font-bold text-sm">{{ emp.name }}</td>
+                    <td class="py-4 executive-mono text-slate-500 uppercase">{{ emp.department }}</td>
+                    <td class="py-4 text-right executive-mono font-bold text-blue-600">{{ emp.total_hours|default('0.00') }} HRS</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+
+    <div class="border border-[var(--border)] bg-[var(--panel)] p-8 border-t-4 border-red-600">
+      <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-6 text-red-600">Deactivate Account</h3>
+      <form method="post" action="/admin/remove_employee" class="flex gap-4">
+        <input class="flex-1 border border-[var(--border)] p-4 text-sm font-bold bg-[var(--bg)] outline-none focus:border-red-600" name="employee_id" placeholder="Enter Employee ID" required />
+        <button class="px-8 bg-red-600 text-white font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-all">Remove</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
+  <div class="bg-[var(--panel)] border border-[var(--border)] p-10 max-w-sm w-full relative">
+    <div class="h-1 w-full bg-blue-600 absolute top-0 left-0"></div>
+    <h3 id="modalTitle" class="text-xs font-black uppercase tracking-widest mb-8 text-blue-600"></h3>
+    <div id="modalBody" class="space-y-4"></div>
+    <button onclick="closeModal()" class="w-full mt-10 py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all">Close Window</button>
+  </div>
+</div>
+
+<!-- Error Popup Modal -->
+<div id="errorPopup" class="hidden fixed inset-0 z-[250] bg-black/50 backdrop-blur-lg flex justify-center items-center p-4 animate-fadeIn">
+  <div class="w-full max-w-sm flex flex-col bg-white rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] overflow-hidden transform transition-all duration-300">
+    <!-- Icon Container with gradient background -->
+    <div class="bg-gradient-to-br from-red-50 via-red-100 to-rose-100 px-8 pt-8 pb-6 flex justify-center">
+      <div class="relative">
+        <div class="absolute inset-0 bg-red-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <svg class="w-16 h-16 text-red-600 relative" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Title & Message -->
+    <div class="px-8 py-6">
+      <h3 class="text-2xl font-bold text-slate-900 mb-2 text-center">Something Went Wrong</h3>
+      <p id="errorMessage" class="text-slate-600 text-center text-sm leading-relaxed font-medium"></p>
+    </div>
+
+    <!-- Divider -->
+    <div class="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
+
+    <!-- Footer -->
+    <div class="px-8 py-6 bg-gradient-to-b from-slate-50 to-white">
+      <button onclick="closeErrorPopup()" class="w-full py-3 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl hover:from-red-600 hover:to-rose-700 transition-all duration-200 shadow-lg shadow-red-200 hover:shadow-red-300 active:scale-95">
+        Try Again
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Success Popup Modal -->
+<div id="successPopup" class="hidden fixed inset-0 z-[250] bg-slate-900/60 backdrop-blur-sm flex justify-center items-center p-4">
+  <div class="w-full max-w-xl bg-white border border-slate-900 shadow-[24px_24px_0px_rgba(0,0,0,0.1)] overflow-hidden transform transition-all">
+    
+    <div class="bg-slate-900 px-8 py-10 flex justify-between items-center">
+        <div>
+            <h3 class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500 mb-2">Internal Operations</h3>
+            <h2 class="text-3xl font-light text-white uppercase tracking-tighter leading-none">
+                Employee <span class="font-bold">Registered</span>
+            </h2>
+        </div>
+        <div class="h-12 w-12 border border-blue-500/50 flex items-center justify-center">
+            <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="square" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+    </div>
+
+    <div class="p-8 space-y-8">
+        <div class="flex items-center gap-4">
+            <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Access Authorization</p>
+            <div class="h-px w-full bg-slate-100"></div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-px bg-slate-200 border border-slate-200 shadow-sm">
+            
+            <div class="bg-white p-5 flex items-center justify-between group hover:bg-slate-50 transition-colors">
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Employee Identifier</label>
+                    <code id="successEmployeeId" class="block font-mono text-base font-bold text-slate-900 select-all">-</code>
+                </div>
+                <button onclick="copyToClipboard('successEmployeeId')" class="px-4 py-2 border border-slate-200 text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
+                    Copy
+                </button>
+            </div>
+
+            <div class="bg-white p-5 flex items-center justify-between group hover:bg-slate-50 transition-colors">
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">System Username</label>
+                    <code id="successUsername" class="block font-mono text-base font-bold text-slate-900 select-all">-</code>
+                </div>
+                <button onclick="copyToClipboard('successUsername')" class="px-4 py-2 border border-slate-200 text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
+                    Copy
+                </button>
+            </div>
+
+            <div class="bg-white p-5 flex items-center justify-between group hover:bg-slate-50 transition-colors">
+                <div class="space-y-1">
+                    <label class="text-[9px] font-black text-blue-600 uppercase tracking-widest">Temporary Password</label>
+                    <code id="successPassword" class="block font-mono text-base font-bold text-slate-900 select-all">-</code>
+                </div>
+                <button onclick="copyToClipboard('successPassword')" class="px-4 py-2 border border-blue-600 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all">
+                    Copy
+                </button>
+            </div>
+        </div>
+
+        <!-- <div class="bg-slate-50 border-l-2 border-slate-900 p-5 flex gap-4">
+            <div class="text-slate-900 mt-0.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="square" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div class="space-y-1">
+                <p class="text-[10px] font-black text-slate-900 uppercase tracking-widest">Security Protocol</p>
+                <p class="text-[11px] text-slate-500 leading-relaxed">
+                    Credentials are displayed once per session. Ensure data is transmitted via encrypted channels. Once dismissed, password recovery is restricted to administrative reset.
+                </p>
+            </div>
+        </div> -->
+    </div>
+
+    <div class="bg-white border-t border-slate-100 p-6 flex justify-end gap-3">
+        <button onclick="closeSuccessPopup();" class="px-6 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
+            Dismiss
+        </button>
+        <button onclick="closeSuccessPopup(); resetAddEmployeeForm();" class="px-8 py-3 bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-lg">
+            Create Another Entry
+        </button>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .animate-bounce {
+    animation: bounce 2s infinite;
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Function to open error popup
+function openErrorPopup(message) {
+  document.getElementById("errorMessage").textContent = message;
+  document.getElementById("errorPopup").classList.remove("hidden");
+}
+
+// Function to close error popup
+function closeErrorPopup() {
+  document.getElementById("errorPopup").classList.add("hidden");
+}
+
+// Function to open success popup with employee data
+function openSuccessPopup(employeeId, username, password) {
+  document.getElementById("successEmployeeId").textContent = employeeId;
+  document.getElementById("successUsername").textContent = username;
+  document.getElementById("successPassword").textContent = password;
+  document.getElementById("successPopup").classList.remove("hidden");
+}
+
+// Function to close success popup
+function closeSuccessPopup() {
+  document.getElementById("successPopup").classList.add("hidden");
+}
+
+// Function to copy text to clipboard
+function copyToClipboard(elementId) {
+  const element = document.getElementById(elementId);
+  const text = element.textContent || element.value;
+  
+  navigator.clipboard.writeText(text).then(() => {
+    // Show brief feedback
+    const originalText = element.textContent;
+    element.textContent = "✓ Copied!";
+    element.style.background = "#dcfce7";
+    element.style.color = "#166534";
+    
+    setTimeout(() => {
+      element.textContent = originalText;
+      element.style.background = "";
+      element.style.color = "";
+    }, 1500);
+  }).catch(err => {
+    console.error("Failed to copy:", err);
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand("copy");
+    document.body.removeChild(textArea);
+  });
+}
+
+// Function to reset the add employee form
+function resetAddEmployeeForm() {
+  document.getElementById("addEmployeeForm").reset();
+}
+
+// Form submission handler
+document.getElementById("addEmployeeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(document.getElementById("addEmployeeForm"));
+  
+  try {
+    const response = await fetch("/admin/add_employee", {
+      method: "POST",
+      body: formData
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Error response
+      openErrorPopup(data.detail || "An error occurred while adding the employee.");
+    } else {
+      // Success response
+      openSuccessPopup(data.employee_id, data.employee_id, data.password);
+    }
+  } catch (error) {
+    openErrorPopup("Network error: " + error.message);
+    console.error("Error:", error);
+  }
+});
+
+// Existing modal functions
+function openModal(loc, room, count){
+  document.getElementById("modalTitle").innerHTML = `${loc} // ROOM ${room}`;
+  fetch(`/api/block_persons?location=${loc}&room=${room}`)
+    .then(r=>r.json())
+    .then(data=>{
+      let html="";
+      if(data.persons.length===0) html = "<p class='executive-mono text-slate-400'>Currently Vacant</p>";
+      else data.persons.forEach(p=> html += `<div class='p-3 border border-[var(--border)] font-bold text-sm'>${p.name}</div>`);
+      document.getElementById("modalBody").innerHTML = html;
+      document.getElementById("modal").classList.remove("hidden");
+    });
+}
+function closeModal(){ document.getElementById("modal").classList.add("hidden"); }
+
+// Payroll Chart Fix
+const labels = {{ payroll|map(attribute='name')|list|safe if payroll else [] }};
+const values = {{ payroll|map(attribute='salary')|list|safe if payroll else [] }};
+
+new Chart(document.getElementById('payrollChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [{
+      data: values,
+      backgroundColor: '#2563eb',
+      borderRadius: 4
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }},
+    scales: {
+      y: { beginAtZero:true, grid:{color:"#f1f5f9"}, ticks:{font:{family:'Inter', size:10}}},
+      x: { grid:{display:false}, ticks:{font:{family:'Inter', size:10}}}
+    }
+  }
+});
+</script>
+{% endblock %}

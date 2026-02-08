@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}TeamSync | Executive{% endblock %}</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --side: #0f172a;
+      --border: #e2e8f0;
+      --text: #020617;
+      --text-muted: #64748b;
+    }
+
+    [data-theme="dark"] {
+      --bg: #000000;
+      --side: #0a0a0a;
+      --border: #262626;
+      --text: #ffffff;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      transition: background 0.3s ease;
+    }
+
+    /* --- UNIFIED SIDEBAR STRUCTURE --- */
+    .sidebar-fixed {
+      width: 280px;
+      background: var(--side);
+      border-right: 1px solid var(--border);
+      height: 100vh;
+      position: fixed;
+      left: 0; top: 0; z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .main-canvas {
+      margin-left: {% if request.path == '/admin/select_dashboard' %} 0 {% else %} 280px {% endif %};
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .nav-link:hover { color: white; background: rgba(255,255,255,0.05); }
+    .nav-link.active { background: white; color: #000; }
+
+    /* Theme Toggle Styling */
+    .theme-btn {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-center;
+      transition: all 0.2s ease;
+    }
+    .theme-btn:hover {
+      background: var(--text);
+      color: var(--bg);
+    }
+
+    .executive-mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+
+    @media (max-width: 1024px) {
+      .sidebar-fixed { display: none; }
+      .main-canvas { margin-left: 0; }
+    }
+
+    
+  #tabIndicator {
+    /* Ensures the indicator only moves as far as the button next to it */
+    width: calc(50% - 4px); 
+    pointer-events: none;
+  }
+  
+  /* Adds a subtle pop-in effect when the list appears */
+  .space-y-4:not(.hidden) {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  </style>
+</head>
+<body data-theme="light">
+
+  {% if request.path != '/admin/select_dashboard' %}
+  <aside class="sidebar-fixed">
+    
+    <div class="p-8">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10">
+            <img src="/static/assets/logo.png" alt="TS" class="w-full h-full object-contain filter drop-shadow(0 0 5px rgba(59, 130, 246, 0.3))">
+        </div>
+        <div>
+          <h1 class="text-xl font-black tracking-tighter text-white uppercase leading-none">TeamSync</h1>
+          <span class="text-[9px] font-bold text-blue-500 tracking-[0.2em] mt-1 block">
+            {% if request.path.startswith('/admin') %}ADMIN_CORE{% else %}WORKSPACE{% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 space-y-1">
+      
+      {% if request.path.startswith('/admin') %}
+        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Operations</div>
+        <a href="/admin" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+          <i class="bi bi-grid-1x2"></i> Dashboard
+        </a>
+        <a href="/admin/attendance" class="nav-link">
+          <i class="bi bi-stopwatch"></i> Attendance
+        </a>
+        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mt-8 mb-2">Management</div>
+        <a href="/admin/manage_employees" class="nav-link">
+          <i class="bi bi-person"></i> Manage Employees
+        </a>
+         <a href="/admin/manage_teams" class="nav-link">
+          <i class="bi bi-people"></i> Manage Teams
+        </a>
+        <a href="/admin/leave_requests" class="nav-link justify-between">
+          <div class="flex items-center gap-3"><i class="bi bi-calendar-check"></i> <span>Leave Approvals</span></div>
+          <span id="leaveCountBadge" class="bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 hidden">0</span>
+        </a>
+        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mt-8 mb-2">System</div>
+        <a href="/admin/payroll" class="nav-link">
+          <i class="bi bi-safe2"></i> Payroll Overview
+        </a>
+           <a href="/admin/unknown_rfid" class="nav-link">
+         <i class="bi bi-question-diamond"></i> Unknown RFID Logs
+        </a>
+
+      {% else %}
+        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Main</div>
+        <a href="/employee" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+          <i class="bi bi-grid-1x2"></i> Dashboard
+        </a>
+        {% if user.role == 'manager' %}
+        <a href="/manager/schedule_meeting" class="nav-link {% if request.path.startswith('/manager/schedule_meeting') %}active{% endif %}">
+          <i class="bi bi-calendar2-week"></i> Schedule Meeting
+        </a>
+        <a href="/manager/assign_task" class="nav-link {% if request.path.startswith('/manager/assign_task') %}active{% endif %}">
+          <i class="bi bi-clipboard-check"></i> Assign Task
+        </a>
+        {% endif %}
+        <a href="/employee/attendance" class="nav-link">
+          <i class="bi bi-stopwatch"></i> Attendance
+        </a>
+        <a href="/employee/tasks" class="nav-link">
+          <i class="bi bi-check2-square"></i> My Tasks
+        </a>
+        <a href="/employee/leave" class="nav-link">
+          <i class="bi bi-calendar-plus"></i> Leave Request
+        </a>
+        <a href="/employee/payslips" class="nav-link">
+          <i class="bi bi-wallet2"></i> My Payslips
+        </a>
+      {% endif %}
+
+{% if user.role == 'admin' %}
+      <div class="border-t border-slate-800 my-4"></div>
+      <a href="/admin/select_dashboard" class="nav-link text-blue-400">
+        <i class="bi bi-arrow-left-right"></i> Switch Mode
+      </a>
+      {% endif %}
+    </nav>
+<div class="p-4 border-t border-slate-800">
+{% if request.path.startswith('/employee') %}
+      <a href="/employee/profile" class="flex items-center gap-3 p-3 hover:bg-slate-800/50 transition-all group">
+        {% if user.photo_blob %}
+          <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="w-9 h-9 rounded-full object-cover border border-slate-700 group-hover:border-blue-500 transition-colors" />
+        {% elif user.photo_path %}
+          <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="w-9 h-9 rounded-full object-cover border border-slate-700 group-hover:border-blue-500 transition-colors" />
+        {% else %}
+          <div class="w-9 h-9 bg-slate-800 flex items-center justify-center text-white font-bold text-xs group-hover:bg-blue-600 transition-colors">
+            {{ user.name[0] }}
+          </div>
+        {% endif %}
+        <div class="overflow-hidden">
+          <p class="text-xs font-bold text-white truncate group-hover:text-blue-400 transition-colors">{{ user.name }}</p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-[9px] text-slate-500 font-mono font-bold tracking-widest uppercase truncate">ID: {{ user.employee_id }}</p>
+          </div>
+        </div>
+      </a>
+      {% else %}
+      <div class="flex items-center gap-3 p-3 opacity-80">
+        {% if user.photo_blob %}
+          <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="w-9 h-9 rounded-full object-cover border border-slate-700" />
+        {% elif user.photo_path %}
+          <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="w-9 h-9 rounded-full object-cover border border-slate-700" />
+        {% else %}
+          <div class="w-9 h-9 bg-slate-800 flex items-center justify-center text-white font-bold text-xs">
+            {{ user.name[0] }}
+          </div>
+        {% endif %}
+        <div class="overflow-hidden">
+          <p class="text-xs font-bold text-white truncate">{{ user.name }}</p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-[9px] text-slate-500 font-mono font-bold tracking-widest uppercase truncate">ID: {{ user.employee_id }}</p>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <a href="/logout" class="mt-2 flex items-center gap-2 px-3 py-2 text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors uppercase">
+        <i class="bi bi-power"></i> Logout
+      </a>
+    </div>
+  </aside>
+  {% endif %}
+
+  <main class="main-canvas">
+    <header class="h-20 border-b border-[var(--border)] px-8 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+          <h2 class="text-sm font-black uppercase tracking-[0.3em]">
+            {% if request.path.startswith('/admin') %}COMMAND CENTER{% else %}MY WORKSPACE{% endif %}
+          </h2>
+      </div>
+      
+    <div class="flex items-center gap-6">
+
+ <!-- CLOCK -->
+<div id="clock" class="executive-mono text-[var(--text-muted)]">00:00:00</div>
+
+{% if request.path != '/admin/select_dashboard' %}
+<button id="calendarToggle" class="theme-btn flex items-center justify-center" title="AI Calendar">
+  <i class="bi bi-calendar3"></i>
+</button>
+
+<button id="meetingToggle" class="theme-btn flex items-center justify-center relative" title="Meetings">
+  <i class="bi bi-camera-video"></i>
+  <span id="meetingBadge" class="absolute -top-1 -right-1 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full hidden"></span>
+</button>
+{% endif %}
+
+{% if request.path.startswith('/employee') %}
+<!-- CHAT ICON -->
+<a href="/employee/chat"
+   class="relative w-10 h-10 flex items-center justify-center
+          border border-[var(--border)] 
+          hover:bg-[var(--text)] hover:text-[var(--bg)]
+          transition-all"
+   title="Chat">
+  <i class="bi bi-chat-dots"></i>
+
+  <!-- REAL unread badge -->
+  <span id="chatBadge"
+        class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px]
+               font-black px-1.5 py-0.5 rounded-full hidden">
+  </span>
+</a>
+{% endif %}
+{% if request.path.startswith('/admin') %}
+<!-- CHAT ICON -->
+<a href="/admin/settings"
+   class="relative w-10 h-10 flex items-center justify-center
+          border border-[var(--border)] 
+          hover:bg-[var(--text)] hover:text-[var(--bg)]
+          transition-all"
+   title="Settings">
+  <i class="bi bi-gear"></i>
+
+</a>
+{% endif %}
+
+<!-- THEME TOGGLE
+<button id="themeToggle"
+        class="theme-btn flex items-center justify-center">
+  <i class="bi bi-moon" id="themeIcon"></i>
+</button> -->
+
+
+    </header>
+
+    <section class="p-8 lg:p-12 flex-1">
+      {% block content %}{% endblock %}
+    </section>
+
+    <footer class="p-8 border-t border-[var(--border)] flex justify-between executive-mono text-[var(--text-muted)] uppercase tracking-widest">
+      <div>Ver 3.6.5 // SR'S_TOUCH</div>
+      <div>&copy; 2026 TeamSync </div>
+    </footer>
+  </main>
+
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-[400] space-y-2"></div>
+
+    <div id="confirmModal" class="fixed inset-0 hidden items-center justify-center z-[410]">
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div class="relative bg-white rounded-2xl w-full max-w-sm mx-4 p-6 shadow-2xl">
+        <h4 class="text-sm font-bold text-slate-900" id="confirmTitle">Please confirm</h4>
+        <p class="text-xs text-slate-500 mt-2" id="confirmMessage"></p>
+        <div class="mt-6 flex justify-end gap-2">
+          <button id="confirmCancel" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold">Cancel</button>
+          <button id="confirmOk" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">OK</button>
+        </div>
+      </div>
+    </div>
+
+  <script>
+    // Place this at the very top of your script or in a separate <script> tag
+function updateClock() {
+    const clockElement = document.getElementById('clock');
+    if (clockElement) {
+        const now = new Date();
+        clockElement.textContent = now.toLocaleTimeString('en-GB');
+    }
+}
+
+// Run immediately
+updateClock();
+setInterval(updateClock, 1000);
+    window.showToast = function (message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      const colors = {
+        info: 'bg-slate-900 text-white',
+        success: 'bg-emerald-600 text-white',
+        warning: 'bg-amber-500 text-white',
+        error: 'bg-rose-600 text-white'
+      };
+
+      toast.className = `px-4 py-3 rounded-xl text-xs font-semibold shadow-lg ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 200);
+      }, 2400);
+    };
+
+    window.showConfirm = function (message, title = 'Please confirm') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+
+        if (!modal || !titleEl || !messageEl || !okBtn || !cancelBtn) {
+          resolve(false);
+          return;
+        }
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        const cleanup = () => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+        };
+
+        const onOk = () => {
+          cleanup();
+          resolve(true);
+        };
+
+        const onCancel = () => {
+          cleanup();
+          resolve(false);
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+      });
+    };
+
+    document.addEventListener('submit', async (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      const confirmMessage = form.dataset.confirm;
+      if (!confirmMessage) return;
+
+      event.preventDefault();
+      const ok = window.showConfirm ? await window.showConfirm(confirmMessage) : confirm(confirmMessage);
+      if (ok) form.submit();
+    });
+    // Theme Switcher Logic
+    const toggle = document.getElementById('themeToggle');
+    const icon = document.getElementById('themeIcon');
+    
+    function setTheme(t) {
+      document.body.setAttribute('data-theme', t);
+      icon.className = t === 'dark' ? 'bi bi-sun' : 'bi bi-moon';
+      localStorage.setItem('theme', t);
+    }
+
+    toggle.addEventListener('click', () => {
+      const current = document.body.getAttribute('data-theme');
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+
+    // Initialize Theme
+    setTheme(localStorage.getItem('theme') || 'light');
+
+
+    // Leave Count API
+    if (document.getElementById("leaveCountBadge")) {
+        fetch("/api/leave_count").then(res => res.json()).then(data => {
+            const badge = document.getElementById("leaveCountBadge");
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.classList.remove("hidden");
+            }
+        });
+    }
+    
+function updateChatBadge() {
+    fetch("/api/chat/unread-count")
+        .then(res => {
+            if (!res.ok) return;
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            const badge = document.getElementById("chatBadge");
+            if (!badge) return;
+
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        })
+        .catch(() => {});
+}
+
+// poll every 5 seconds
+setInterval(updateChatBadge, 5000);
+updateChatBadge();
+</script>
+
+  <script>
+    function parseEmployeesList(value) {
+      if (!value) return [];
+      return value.split(',').map(item => item.trim()).filter(Boolean);
+    }
+
+    function openMeetingEmployeesModal(listValue) {
+      const modal = document.getElementById('meetingEmployeesModal');
+      const listEl = document.getElementById('meetingEmployeesList');
+      if (!modal || !listEl) return;
+
+      listEl.innerHTML = '';
+      const items = parseEmployeesList(listValue);
+
+      if (items.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'text-slate-500';
+        empty.textContent = 'No attendees available.';
+        listEl.appendChild(empty);
+      } else {
+        items.forEach(name => {
+          const li = document.createElement('li');
+          li.className = 'px-3 py-2 rounded-lg border border-slate-100 bg-white';
+          li.textContent = name;
+          listEl.appendChild(li);
+        });
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeMeetingEmployeesModal() {
+      const modal = document.getElementById('meetingEmployeesModal');
+      if (!modal) return;
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function buildMeetingRow(meeting) {
+      const row = document.createElement('div');
+      row.className = 'border border-slate-200 rounded-2xl p-4 bg-white shadow-sm hover:shadow-md transition-all';
+
+      const header = document.createElement('div');
+      header.className = 'flex items-start justify-between gap-2';
+
+      const titleWrap = document.createElement('div');
+      const title = document.createElement('div');
+      title.className = 'text-sm font-bold text-slate-900';
+      title.textContent = meeting.title || 'Meeting';
+      const time = document.createElement('div');
+      time.className = 'text-xs text-slate-500';
+      time.textContent = meeting.meeting_datetime || '';
+      titleWrap.appendChild(title);
+      titleWrap.appendChild(time);
+
+      const status = document.createElement('span');
+      status.className = 'text-[10px] uppercase font-black tracking-widest px-2.5 py-1 rounded-full';
+      if (meeting.status === 'Ongoing') {
+        status.classList.add('bg-emerald-50', 'text-emerald-700');
+      } else if (meeting.status === 'Completed') {
+        status.classList.add('bg-slate-100', 'text-slate-600');
+      } else {
+        status.classList.add('bg-blue-50', 'text-blue-600');
+      }
+      status.textContent = meeting.status || 'Upcoming';
+
+      header.appendChild(titleWrap);
+      header.appendChild(status);
+
+      const sender = document.createElement('div');
+      sender.className = 'mt-2 text-xs text-slate-600';
+      sender.innerHTML = `<span class="text-slate-400 uppercase tracking-widest text-[9px] font-bold">Sender</span><div class="mt-1 font-semibold text-slate-700">${meeting.sender_name || '-'} <span class="text-slate-400">(${meeting.sender_employee_id || '-'})</span></div>`;
+
+      const employees = document.createElement('div');
+      employees.className = 'mt-2 text-xs text-slate-600';
+
+      const employeesHeader = document.createElement('div');
+      employeesHeader.className = 'flex items-center justify-between gap-2';
+      const employeesLabel = document.createElement('span');
+      employeesLabel.className = 'text-slate-400 uppercase tracking-widest text-[9px] font-bold';
+      employeesLabel.textContent = 'Employees';
+      employeesHeader.appendChild(employeesLabel);
+
+      const employeesList = document.createElement('div');
+      employeesList.className = 'mt-1 text-slate-700';
+      employeesList.textContent = meeting.employees || '-';
+
+      const hasEmployees = meeting.employees && meeting.employees.trim() !== '-';
+      if (hasEmployees) {
+        const viewBtn = document.createElement('button');
+        viewBtn.type = 'button';
+        viewBtn.className = 'px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200 text-slate-700';
+        viewBtn.textContent = 'View';
+        viewBtn.addEventListener('click', () => openMeetingEmployeesModal(meeting.employees));
+        employeesHeader.appendChild(viewBtn);
+      }
+
+      employees.appendChild(employeesHeader);
+      employees.appendChild(employeesList);
+
+      const actions = document.createElement('div');
+      actions.className = 'mt-3 flex flex-wrap items-center gap-2';
+
+      if (meeting.meeting_link && meeting.status !== 'Completed') {
+        const link = document.createElement('a');
+        link.href = meeting.meeting_link;
+        link.target = '_blank';
+        link.className = 'text-xs text-blue-600 hover:underline break-all flex-1';
+        link.textContent = meeting.meeting_link;
+
+        const join = document.createElement('a');
+        join.href = meeting.join_url || meeting.meeting_link;
+        join.target = '_blank';
+        join.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold';
+        join.textContent = 'Join';
+
+        actions.appendChild(link);
+        actions.appendChild(join);
+      } else {
+        const noLink = document.createElement('div');
+        noLink.className = 'text-xs text-slate-400';
+        noLink.textContent = meeting.status === 'Completed' ? 'Meeting completed.' : 'Meeting link not available.';
+        actions.appendChild(noLink);
+      }
+
+      row.appendChild(header);
+      row.appendChild(sender);
+      row.appendChild(actions);
+      row.appendChild(employees);
+      return row;
+    }
+
+    async function loadMeetingPopup(upcomingList, pastList, emptyUpcoming, emptyPast, meetingBadge) {
+      if (!upcomingList || !pastList) return;
+      upcomingList.innerHTML = '';
+      pastList.innerHTML = '';
+      emptyUpcoming?.classList.add('hidden');
+      emptyPast?.classList.add('hidden');
+      try {
+        const res = await fetch('/api/meetings/popup');
+        if (!res.ok) return;
+        const data = await res.json();
+        const upcoming = Array.isArray(data.upcoming) ? data.upcoming : [];
+        const past = Array.isArray(data.past) ? data.past : [];
+        if (meetingBadge) {
+          if (upcoming.length > 0) {
+            meetingBadge.textContent = upcoming.length;
+            meetingBadge.classList.remove('hidden');
+          } else {
+            meetingBadge.classList.add('hidden');
+          }
+        }
+
+        if (upcoming.length === 0) {
+          emptyUpcoming?.classList.remove('hidden');
+        } else {
+          upcoming.forEach(meeting => upcomingList.appendChild(buildMeetingRow(meeting)));
+        }
+
+        if (past.length === 0) {
+          emptyPast?.classList.remove('hidden');
+        } else {
+          past.forEach(meeting => pastList.appendChild(buildMeetingRow(meeting)));
+        }
+      } catch (_) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const meetingToggle = document.getElementById('meetingToggle');
+      const meetingModal = document.getElementById('meetingModal');
+      const meetingClose = document.getElementById('meetingClose');
+      const meetingUpcomingBtn = document.getElementById('meetingUpcomingBtn');
+      const meetingPastBtn = document.getElementById('meetingPastBtn');
+      const meetingModalListUpcoming = document.getElementById('meetingModalListUpcoming');
+      const meetingModalListPast = document.getElementById('meetingModalListPast');
+      const meetingModalEmptyUpcoming = document.getElementById('meetingModalEmptyUpcoming');
+      const meetingModalEmptyPast = document.getElementById('meetingModalEmptyPast');
+      const meetingBadge = document.getElementById('meetingBadge');
+      const meetingEmployeesClose = document.getElementById('meetingEmployeesClose');
+      const meetingEmployeesModal = document.getElementById('meetingEmployeesModal');
+
+      function showUpcomingTab() {
+        meetingUpcomingBtn?.classList.add('border-blue-600', 'text-blue-700');
+        meetingPastBtn?.classList.remove('border-blue-600', 'text-blue-700');
+        meetingModalListUpcoming?.classList.remove('hidden');
+        meetingModalListPast?.classList.add('hidden');
+        meetingModalEmptyUpcoming?.classList.toggle('hidden', meetingModalListUpcoming?.children.length > 0);
+        meetingModalEmptyPast?.classList.add('hidden');
+      }
+
+      function showPastTab() {
+        meetingPastBtn?.classList.add('border-blue-600', 'text-blue-700');
+        meetingUpcomingBtn?.classList.remove('border-blue-600', 'text-blue-700');
+        meetingModalListPast?.classList.remove('hidden');
+        meetingModalListUpcoming?.classList.add('hidden');
+        meetingModalEmptyPast?.classList.toggle('hidden', meetingModalListPast?.children.length > 0);
+        meetingModalEmptyUpcoming?.classList.add('hidden');
+      }
+
+      let meetingPolling = null;
+      function openMeetingModal() {
+        if (!meetingModal) return;
+        meetingModal.classList.remove('hidden');
+        meetingModal.classList.add('flex');
+        loadMeetingPopup(meetingModalListUpcoming, meetingModalListPast, meetingModalEmptyUpcoming, meetingModalEmptyPast, meetingBadge);
+        showUpcomingTab();
+        if (!meetingPolling) {
+          meetingPolling = setInterval(() => loadMeetingPopup(meetingModalListUpcoming, meetingModalListPast, meetingModalEmptyUpcoming, meetingModalEmptyPast, meetingBadge), 60000);
+        }
+      }
+
+      function closeMeetingModal() {
+        if (!meetingModal) return;
+        meetingModal.classList.add('hidden');
+        meetingModal.classList.remove('flex');
+      }
+
+      if (meetingToggle) {
+        meetingToggle.addEventListener('click', openMeetingModal);
+      }
+      if (meetingModalListUpcoming && meetingModalListPast) {
+        loadMeetingPopup(meetingModalListUpcoming, meetingModalListPast, meetingModalEmptyUpcoming, meetingModalEmptyPast, meetingBadge);
+        setInterval(() => loadMeetingPopup(meetingModalListUpcoming, meetingModalListPast, meetingModalEmptyUpcoming, meetingModalEmptyPast, meetingBadge), 60000);
+      }
+      if (meetingClose) meetingClose.addEventListener('click', closeMeetingModal);
+      if (meetingUpcomingBtn) meetingUpcomingBtn.addEventListener('click', showUpcomingTab);
+      if (meetingPastBtn) meetingPastBtn.addEventListener('click', showPastTab);
+      if (meetingModal) meetingModal.addEventListener('click', (e) => {
+        if (e.target === meetingModal) closeMeetingModal();
+      });
+      if (meetingEmployeesClose) meetingEmployeesClose.addEventListener('click', closeMeetingEmployeesModal);
+      if (meetingEmployeesModal) meetingEmployeesModal.addEventListener('click', (e) => {
+        if (e.target === meetingEmployeesModal) closeMeetingEmployeesModal();
+      });
+    });
+  </script>
+
+  <!-- AI Calendar Modal (shared across pages) -->
+<div id="aiCalendarModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md hidden items-center justify-center z-[300] transition-all duration-300">
+  
+  <div class="bg-white/70 backdrop-blur-xl w-full max-w-5xl mx-4 border border-white/40 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2rem] max-h-[90vh] overflow-y-auto overflow-x-hidden relative">
+    
+    <div class="absolute inset-0 rounded-[2rem] pointer-events-none border border-white/20 shadow-[inset_0_0_20px_rgba(255,255,255,0.5)]"></div>
+
+    <div class="relative z-10 p-8">
+      <div class="flex items-center justify-between pb-6 border-b border-slate-200/30">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold">AI Intelligence</div>
+          </div>
+          <h3 class="text-2xl font-black uppercase tracking-tighter text-slate-800 italic">Planner<span class="text-blue-600">.</span></h3>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button id="aiCalendarSettingsToggle" class="group flex items-center justify-center w-10 h-10 rounded-full bg-white/40 border border-white/60 hover:bg-white hover:border-blue-400 transition-all shadow-sm" title="Regional Settings">
+            <i class="bi bi-gear text-slate-600 group-hover:rotate-90 transition-transform"></i>
+          </button>
+
+          {% if user.role == 'admin' and request.path.startswith('/admin') %}
+          <a href="/admin/office_holidays" class="flex items-center justify-center w-10 h-10 rounded-full bg-blue-50/50 border border-blue-200/50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Office Holidays">
+            <i class="bi bi-building"></i>
+          </a>
+          {% endif %}
+
+          <button id="aiCalendarClose" class="flex items-center justify-center w-10 h-10 rounded-full bg-slate-800 text-white hover:bg-red-500 transition-colors shadow-lg">
+            <i class="bi bi-x-lg text-sm"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div class="lg:col-span-8 space-y-6">
+          <div class="bg-white/30 rounded-2xl p-6 border border-white/40 shadow-sm">
+            <div class="flex items-center justify-between mb-6">
+              <div class="flex bg-white/50 p-1 rounded-xl border border-white/60">
+                <button id="aiCalendarPrev" class="px-4 py-1 hover:bg-white rounded-lg transition-all text-xs">◀</button>
+                <button id="aiCalendarNext" class="px-4 py-1 hover:bg-white rounded-lg transition-all text-xs">▶</button>
+              </div>
+              <div class="flex gap-2">
+                <select id="aiCalendarMonth" class="bg-white/60 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-400/20"></select>
+                <select id="aiCalendarYear" class="bg-white/60 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-700 outline-none focus:ring-2 ring-blue-400/20"></select>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="aiCalendarGrid"></div>
+          </div>
+
+          <div class="bg-slate-900/5 rounded-2xl p-6 border border-slate-200/20">
+            <div class="flex items-center gap-2 mb-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+               <i class="bi bi-list-stars text-blue-500"></i> Selected Day Agenda
+            </div>
+            <div id="aiCalendarList" class="space-y-3 min-h-[100px]">
+               <div class="flex flex-col items-center justify-center py-4 opacity-40 italic text-xs">
+                  No tasks scheduled for this date.
+               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-4 space-y-4">
+          <div class="bg-white/50 backdrop-blur-md p-5 rounded-2xl border border-white shadow-sm group">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Schedule Date</label>
+            <input id="aiCalendarDate" type="date" class="w-full bg-transparent border-none p-0 text-slate-800 font-bold focus:ring-0 cursor-pointer" />
+          </div>
+
+          <div class="bg-blue-600/5 backdrop-blur-md p-6 rounded-2xl border border-blue-100/50 space-y-4">
+            <div class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Create New Event</div>
+            <input id="aiCalendarTitle" type="text" placeholder="What's happening?" class="w-full bg-white/80 border-white rounded-xl p-3 text-sm focus:ring-4 ring-blue-500/10 transition-all placeholder:text-slate-400" />
+            <select id="aiCalendarType" class="w-full bg-white/80 border-white rounded-xl p-3 text-sm focus:ring-4 ring-blue-500/10 transition-all">
+              <option value="general">General Entry</option>
+              <option value="meeting">Meeting</option>
+              <option value="task">Task</option>
+            </select>
+            <textarea id="aiCalendarNotes" rows="3" placeholder="Additional details..." class="w-full bg-white/80 border-white rounded-xl p-3 text-sm focus:ring-4 ring-blue-500/10 transition-all placeholder:text-slate-400"></textarea>
+            <button id="aiCalendarAdd" class="w-full py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-blue-600 hover:-translate-y-1 active:translate-y-0 shadow-lg shadow-slate-900/10 transition-all">
+              Add To Planner
+            </button>
+          </div>
+
+          <div class="p-4 grid grid-cols-2 gap-x-2 gap-y-3 opacity-80">
+            <div class="flex items-center gap-2"><span class="h-1.5 w-4 rounded-full bg-red-500"></span><span class="text-[9px] font-bold uppercase text-slate-500">National</span></div>
+            <div class="flex items-center gap-2"><span class="h-1.5 w-4 rounded-full bg-blue-500"></span><span class="text-[9px] font-bold uppercase text-slate-500">Meeting</span></div>
+            <div class="flex items-center gap-2"><span class="h-1.5 w-4 rounded-full bg-purple-500"></span><span class="text-[9px] font-bold uppercase text-slate-500">Office</span></div>
+            <div class="flex items-center gap-2"><span class="h-1.5 w-4 rounded-full bg-emerald-500"></span><span class="text-[9px] font-bold uppercase text-slate-500">Task</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="aiCalendarSettings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-[400] transition-opacity duration-300">
+    <div class="bg-white/80 backdrop-blur-2xl border border-white/50 p-8 rounded-[2.5rem] shadow-2xl max-w-md w-full mx-4 relative overflow-hidden">
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl"></div>
+      <div class="relative z-10">
+        <div class="flex items-center justify-between mb-8">
+          <div class="space-y-1">
+            <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Preferences</div>
+            <h4 class="text-xl font-black text-slate-800 tracking-tight">Regional Settings</h4>
+          </div>
+          <button id="aiCalendarSettingsClose" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200/50 hover:bg-red-500 hover:text-white transition-all">
+            <i class="bi bi-x-lg text-xs"></i>
+          </button>
+        </div>
+        <div class="space-y-6">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Country</label>
+            <input id="aiCalendarCountrySearch" type="text" class="w-full bg-white/50 border border-white rounded-xl p-3 text-sm outline-none focus:ring-4 ring-blue-500/10 transition-all" placeholder="Search country..." />
+            <select id="aiCalendarCountry" class="mt-2 w-full bg-white/50 border border-white rounded-xl p-3 text-sm outline-none transition-all"></select>
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">State / Region</label>
+            <input id="aiCalendarStateSearch" type="text" class="w-full bg-white/50 border border-white rounded-xl p-3 text-sm outline-none focus:ring-4 ring-blue-500/10 transition-all" placeholder="Search state..." />
+            <select id="aiCalendarState" class="mt-2 w-full bg-white/50 border border-white rounded-xl p-3 text-sm outline-none transition-all"></select>
+          </div>
+          <button id="aiCalendarSaveSettings" type="button" class="w-full py-4 bg-slate-900 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-blue-600 transition-all mt-4">Save Preferences</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="meetingModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md hidden items-center justify-center z-[320] p-4">
+  <div class="relative bg-white/70 backdrop-blur-2xl w-full max-w-3xl border border-white/40 rounded-[2.5rem] max-h-[85vh] flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.1)] ring-1 ring-black/5 overflow-hidden">
+    
+    <div class="p-6 pb-0 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 text-white flex items-center justify-center shadow-lg shadow-blue-500/30">
+          <i class="bi bi-camera-video-fill text-xl"></i>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-bold leading-none mb-1">Meetings</div>
+          <h3 class="text-base font-black uppercase tracking-wider text-slate-800 leading-none">My Meeting Links</h3>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="relative flex items-center bg-white/40 p-1 rounded-2xl border border-white/60 backdrop-blur-sm w-48 h-11">
+          <div id="tabIndicator" class="absolute top-1 left-1 bottom-1 w-[calc(50%-4px)] bg-blue-600 rounded-xl shadow-md transition-all duration-300 ease-in-out"></div>
+          
+          <button id="meetingUpcomingBtn" class="relative z-10 w-1/2 text-[10px] font-black uppercase tracking-widest text-white transition-colors duration-300">
+            Upcoming
+          </button>
+          <button id="meetingPastBtn" class="relative z-10 w-1/2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-colors duration-300">
+            Past
+          </button>
+        </div>
+
+        <button id="meetingClose" class="w-10 h-10 flex items-center justify-center rounded-full border border-white/60 bg-white/40 text-slate-500 hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-300">
+          <i class="bi bi-x-lg text-sm"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6 pt-4 custom-glass-scrollbar">
+      <div class="space-y-4" id="meetingModalListUpcoming"></div>
+      <div class="space-y-4 hidden" id="meetingModalListPast"></div>
+      
+      <div id="meetingModalEmptyUpcoming" class="hidden flex flex-col items-center justify-center py-16 bg-white/20 border border-dashed border-white/50 rounded-[2rem] text-center">
+        <i class="bi bi-calendar4-event text-3xl text-slate-300 mb-3"></i>
+        <p class="text-sm text-slate-500 italic font-medium">No upcoming meetings found.</p>
+      </div>
+       <div id="meetingModalEmptyPast" class="hidden flex flex-col items-center justify-center py-16 bg-white/20 border border-dashed border-white/50 rounded-[2rem] text-center">
+        <i class="bi bi-calendar4-event text-3xl text-slate-300 mb-3"></i>
+        <p class="text-sm text-slate-500 italic font-medium">No past meetings found.</p>
+      </div>
+    </div>
+  </div>
+</div>
+  <script>
+    // AI Calendar modal logic (calendar-specific functions)
+    const calendarToggle = document.getElementById('calendarToggle');
+    const calendarModal = document.getElementById('aiCalendarModal');
+    const calendarClose = document.getElementById('aiCalendarClose');
+    const calendarDate = document.getElementById('aiCalendarDate');
+    const calendarTitle = document.getElementById('aiCalendarTitle');
+    const calendarAdd = document.getElementById('aiCalendarAdd');
+    const calendarList = document.getElementById('aiCalendarList');
+    const calendarNotes = document.getElementById('aiCalendarNotes');
+    const calendarGrid = document.getElementById('aiCalendarGrid');
+    const calendarType = document.getElementById('aiCalendarType');
+    const calendarTargetSection = document.getElementById('aiCalendarTargetSection');
+    const calendarTargetTeam = document.getElementById('aiCalendarTargetTeam');
+    const calendarTargetSearch = document.getElementById('aiCalendarTargetSearch');
+    const calendarTargetList = document.getElementById('aiCalendarTargetList');
+    const calendarSettingsToggle = document.getElementById('aiCalendarSettingsToggle');
+    const calendarSettings = document.getElementById('aiCalendarSettings');
+    const calendarSettingsClose = document.getElementById('aiCalendarSettingsClose');
+    const calendarCountry = document.getElementById('aiCalendarCountry');
+    const calendarState = document.getElementById('aiCalendarState');
+    const calendarCountrySearch = document.getElementById('aiCalendarCountrySearch');
+    const calendarStateSearch = document.getElementById('aiCalendarStateSearch');
+    const calendarSaveSettings = document.getElementById('aiCalendarSaveSettings');
+    const calendarPrev = document.getElementById('aiCalendarPrev');
+    const calendarNext = document.getElementById('aiCalendarNext');
+    const calendarMonth = document.getElementById('aiCalendarMonth');
+    const calendarYear = document.getElementById('aiCalendarYear');
+    const currentUserId = {{ user.id if user else 'null' }};
+    let calendarEventsCache = [];
+    let holidayCache = {};
+    let combinedEventsByDate = {};
+    let viewYear = new Date().getFullYear();
+    let viewMonth = new Date().getMonth();
+    let calendarSettingsLoaded = false;
+    let calendarDataPromise = null;
+    let allCountries = [];
+    let allStates = [];
+    let settingsSaveTimer = null;
+    let targetEmployees = [];
+    let targetTeams = [];
+    let targetsLoaded = false;
+
+    const upcomingBtn = document.getElementById('meetingUpcomingBtn');
+const pastBtn = document.getElementById('meetingPastBtn');
+const tabIndicator = document.getElementById('tabIndicator');
+const upcomingList = document.getElementById('meetingModalListUpcoming');
+const pastList = document.getElementById('meetingModalListPast');
+
+function switchTab(target) {
+    if (target === 'upcoming') {
+        // Move indicator to the left
+        tabIndicator.style.transform = 'translateX(0%)';
+        
+        // Update Text Colors
+        upcomingBtn.classList.replace('text-slate-600', 'text-white');
+        pastBtn.classList.replace('text-white', 'text-slate-600');
+        
+        // Toggle Content
+        upcomingList.classList.remove('hidden');
+        pastList.classList.add('hidden');
+    } else {
+        // Move indicator to the right (100% of its width + padding)
+        tabIndicator.style.transform = 'translateX(100%)';
+        
+        // Update Text Colors
+        pastBtn.classList.replace('text-slate-600', 'text-white');
+        upcomingBtn.classList.replace('text-white', 'text-slate-600');
+        
+        // Toggle Content
+        pastList.classList.remove('hidden');
+        upcomingList.classList.add('hidden');
+    }
+}
+
+upcomingBtn.addEventListener('click', () => switchTab('upcoming'));
+pastBtn.addEventListener('click', () => switchTab('past'));
+
+    async function fetchCalendarEvents() {
+      const res = await fetch('/api/calendar');
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.events || [];
+    }
+
+    async function fetchHolidays(year) {
+      if (holidayCache[year]) return holidayCache[year];
+      const res = await fetch(`/api/calendar/holidays?year=${year}`);
+      if (!res.ok) {
+        holidayCache[year] = [];
+        return [];
+      }
+      const data = await res.json();
+      holidayCache[year] = data.holidays || [];
+      return holidayCache[year];
+    }
+
+    function rebuildEventsIndex() {
+      combinedEventsByDate = {};
+      calendarEventsCache.forEach(e => {
+        if (!combinedEventsByDate[e.date]) combinedEventsByDate[e.date] = [];
+        combinedEventsByDate[e.date].push(e);
+      });
+      Object.values(holidayCache).forEach(list => {
+        list.forEach(e => {
+          if (!combinedEventsByDate[e.date]) combinedEventsByDate[e.date] = [];
+          combinedEventsByDate[e.date].push(e);
+        });
+      });
+    }
+
+    function eventColor(title, type) {
+      const t = (title || '').toLowerCase();
+      const ty = (type || '').toLowerCase();
+      if (ty === 'national_holiday') return 'bg-red-500';
+      if (ty === 'state_holiday') return 'bg-orange-500';
+      if (ty === 'office_holiday') return 'bg-purple-500';
+      if (ty === 'personal_leave' || ty === 'leave' || t.includes('leave')) return 'bg-amber-500';
+      if (ty === 'meeting' || t.includes('meet') || t.includes('sync')) return 'bg-blue-500';
+      if (ty === 'task' || t.includes('task') || t.includes('focus')) return 'bg-emerald-500';
+      return 'bg-slate-500';
+    }
+
+    function renderSelectedDayList(dateStr) {
+      if (!calendarList) return;
+      const events = combinedEventsByDate[dateStr] || [];
+      if (!events.length) {
+        calendarList.innerHTML = '<div class="text-[11px] text-slate-400">No events scheduled.</div>';
+        return;
+      }
+      calendarList.innerHTML = events.map((e) => `
+        <div class="flex items-center justify-between border border-[var(--border)] p-2">
+          <div>
+            <div class="text-[11px] text-slate-500">${e.date || '-'}</div>
+            <div class="font-semibold">${e.title}</div>
+            ${e.notes ? `<div class="text-[11px] text-slate-400">${e.notes}</div>` : ''}
+          </div>
+          ${e.id && e.owner_id === currentUserId && !['office_holiday', 'national_holiday', 'state_holiday'].includes((e.type || '').toLowerCase()) ? `<button data-ai-cal-remove="${e.id}" class="text-[10px] uppercase tracking-widest text-red-500">Remove</button>` : ''}
+        </div>
+      `).join('');
+      document.querySelectorAll('[data-ai-cal-remove]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-ai-cal-remove'));
+          await fetch(`/api/calendar/${id}`, { method: 'DELETE' });
+          calendarEventsCache = await fetchCalendarEvents();
+          rebuildEventsIndex();
+          renderCalendar();
+          renderSelectedDayList(calendarDate?.value || '');
+        });
+      });
+    }
+
+    function buildMonth(year, month, eventsMap) {
+      const monthName = new Date(year, month, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const firstDay = new Date(year, month, 1);
+      const startDay = (firstDay.getDay() + 6) % 7; // Monday = 0
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      let cells = '';
+      for (let i = 0; i < startDay; i++) {
+        cells += '<div class="h-10 border border-[var(--border)] bg-slate-50"></div>';
+      }
+      for (let day = 1; day <= daysInMonth; day++) {
+        const mm = String(month + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateStr = `${year}-${mm}-${dd}`;
+        const events = eventsMap[dateStr] || [];
+        const dots = events.slice(0, 3).map(e => `<span class="h-1.5 w-1.5 rounded-full ${eventColor(e.title, e.type)}"></span>`).join('');
+        const moreCount = events.length > 3 ? `<span class="ml-1 text-[9px] font-black text-slate-500">+${events.length - 3}</span>` : '';
+        const isToday = dateStr === todayStr;
+        const todayClass = isToday ? 'bg-lime-200 border-lime-500' : '';
+        cells += `
+          <button data-calendar-day="${dateStr}" class="h-10 border border-[var(--border)] text-xs text-slate-700 hover:bg-blue-50 relative ${todayClass}">
+            <div class="absolute top-1 left-1 text-[10px] font-semibold">${day}</div>
+            <div class="absolute bottom-1 right-1 flex items-center gap-1">${dots}${moreCount}</div>
+          </button>
+        `;
+      }
+      return `
+        <div class="border border-[var(--border)] p-4">
+          <div class="text-xs font-black uppercase tracking-widest text-slate-600 mb-3">${monthName}</div>
+          <div class="grid grid-cols-7 gap-0 text-[10px] text-slate-400 mb-2">
+            <div>Mo</div><div>Tu</div><div>We</div><div>Th</div><div>Fr</div><div>Sa</div><div>Su</div>
+          </div>
+          <div class="grid grid-cols-7 gap-0">${cells}</div>
+        </div>
+      `;
+    }
+
+    function buildMonthOptions() {
+      if (!calendarMonth || !calendarYear) return;
+      const months = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleString('en-US', { month: 'long' }));
+      calendarMonth.innerHTML = months.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+      const years = [];
+      const currentYear = new Date().getFullYear();
+      for (let y = currentYear - 10; y <= currentYear + 10; y += 1) years.push(y);
+      calendarYear.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+
+    function renderCalendar() {
+      if (!calendarGrid) return;
+      const current = buildMonth(viewYear, viewMonth, combinedEventsByDate);
+      const nextDate = new Date(viewYear, viewMonth + 1, 1);
+      const next = buildMonth(nextDate.getFullYear(), nextDate.getMonth(), combinedEventsByDate);
+      calendarGrid.innerHTML = current + next;
+      document.querySelectorAll('[data-calendar-day]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dateStr = btn.getAttribute('data-calendar-day');
+          if (calendarDate) calendarDate.value = dateStr;
+          document.querySelectorAll('[data-calendar-day]').forEach(b => b.classList.remove('bg-yellow-200', 'border-yellow-500'));
+          btn.classList.add('bg-yellow-200', 'border-yellow-500');
+          renderSelectedDayList(dateStr);
+        });
+      });
+    }
+
+    function prefetchCalendarData() {
+      if (calendarDataPromise) return calendarDataPromise;
+      const yearA = viewYear;
+      const yearB = new Date(viewYear, viewMonth + 1, 1).getFullYear();
+      calendarDataPromise = Promise.all([
+        fetchCalendarEvents(),
+        fetchHolidays(yearA),
+        yearB !== yearA ? fetchHolidays(yearB) : Promise.resolve([])
+      ]).then(([events]) => {
+        calendarEventsCache = events;
+        rebuildEventsIndex();
+      }).catch(() => {
+        calendarEventsCache = [];
+        rebuildEventsIndex();
+      }).finally(() => {
+        calendarDataPromise = null;
+      });
+      return calendarDataPromise;
+    }
+
+    async function openCalendar() {
+      if (!calendarModal) return;
+      calendarModal.classList.remove('hidden');
+      calendarModal.classList.add('flex');
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (calendarDate) calendarDate.setAttribute('min', todayStr);
+      if (calendarDate && !calendarDate.value) {
+        const today = new Date().toISOString().slice(0, 10);
+        calendarDate.value = today;
+      }
+      viewYear = new Date(calendarDate?.value || new Date().toISOString().slice(0, 10)).getFullYear();
+      viewMonth = new Date(calendarDate?.value || new Date().toISOString().slice(0, 10)).getMonth();
+      buildMonthOptions();
+      if (calendarMonth) calendarMonth.value = String(viewMonth);
+      if (calendarYear) calendarYear.value = String(viewYear);
+      await prefetchCalendarData();
+      renderCalendar();
+      renderSelectedDayList(calendarDate?.value || '');
+      if (!calendarSettingsLoaded) {
+        loadCalendarSettings().finally(() => { calendarSettingsLoaded = true; });
+      }
+      if (!targetsLoaded) {
+        loadCalendarTargets().finally(() => { targetsLoaded = true; });
+      }
+      if (calendarDataPromise) {
+        calendarDataPromise.then(() => {
+          renderCalendar();
+          renderSelectedDayList(calendarDate?.value || '');
+        });
+      }
+    }
+
+    function closeCalendar() {
+      if (!calendarModal) return;
+      calendarModal.classList.add('hidden');
+      calendarModal.classList.remove('flex');
+    }
+
+    if (calendarToggle) calendarToggle.addEventListener('click', openCalendar);
+    prefetchCalendarData();
+    if (calendarClose) calendarClose.addEventListener('click', closeCalendar);
+    if (calendarModal) {
+      calendarModal.addEventListener('click', (e) => {
+        if (e.target === calendarModal) closeCalendar();
+      });
+    }
+
+    if (calendarPrev) {
+      calendarPrev.addEventListener('click', () => {
+        viewMonth -= 1;
+        if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
+        if (calendarMonth) calendarMonth.value = String(viewMonth);
+        if (calendarYear) calendarYear.value = String(viewYear);
+        renderCalendar();
+      });
+    }
+    if (calendarNext) {
+      calendarNext.addEventListener('click', () => {
+        viewMonth += 1;
+        if (viewMonth > 11) { viewMonth = 0; viewYear += 1; }
+        if (calendarMonth) calendarMonth.value = String(viewMonth);
+        if (calendarYear) calendarYear.value = String(viewYear);
+        renderCalendar();
+      });
+    }
+    if (calendarMonth) {
+      calendarMonth.addEventListener('change', () => {
+        viewMonth = Number(calendarMonth.value);
+        renderCalendar();
+      });
+    }
+    if (calendarYear) {
+      calendarYear.addEventListener('change', () => {
+        viewYear = Number(calendarYear.value);
+        renderCalendar();
+      });
+    }
+
+    if (calendarAdd) {
+      calendarAdd.addEventListener('click', async () => {
+        const date = calendarDate?.value || '';
+        const title = (calendarTitle?.value || '').trim();
+        const notes = (calendarNotes?.value || '').trim();
+        const type = calendarType?.value || 'general';
+        const todayStr = new Date().toISOString().slice(0, 10);
+        let target_employee_hashes = [];
+        let target_team_id = null;
+        if (calendarTargetSection && !calendarTargetSection.classList.contains('hidden')) {
+          target_team_id = calendarTargetTeam?.value ? Number(calendarTargetTeam.value) : null;
+          document.querySelectorAll('.ai-target-employee:checked').forEach(input => {
+            target_employee_hashes.push(input.value);
+          });
+        }
+        if (!title) return;
+        if (date && date < todayStr) {
+          window.showToast?.('You cannot create events in the past.', 'warning');
+          return;
+        }
+        await fetch('/api/calendar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date,
+            title,
+            notes,
+            type,
+            target_employee_hashes,
+            target_team_id,
+          })
+        });
+        if (calendarTitle) calendarTitle.value = '';
+        if (calendarNotes) calendarNotes.value = '';
+        calendarEventsCache = await fetchCalendarEvents();
+        rebuildEventsIndex();
+        renderCalendar();
+        renderSelectedDayList(date);
+      });
+    }
+
+
+if (calendarSettingsToggle && calendarSettings) {
+  calendarSettingsToggle.addEventListener('click', () => {
+    calendarSettings.classList.remove('hidden');
+    calendarSettings.classList.add('flex');
+    // Optional: slight delay for a fade-in effect if you use opacity classes
+    calendarSettings.style.opacity = "1"; 
+  });
+}
+
+const hideSettings = () => {
+  calendarSettings.classList.add('hidden');
+  calendarSettings.classList.remove('flex');
+};
+
+if (calendarSettingsClose) {
+  calendarSettingsClose.addEventListener('click', hideSettings);
+}
+
+// Close when clicking the backdrop
+if (calendarSettings) {
+  calendarSettings.addEventListener('click', (e) => {
+    if (e.target === calendarSettings) {
+      hideSettings();
+    }
+  });
+}
+    async function loadCalendarSettings() {
+      if (!calendarCountry || !calendarState) return;
+      const res = await fetch('/api/calendar/settings');
+      if (!res.ok) return;
+      const data = await res.json();
+      allCountries = data.countries || [];
+      allStates = data.states || [];
+      renderCountryOptions();
+      renderStateOptions();
+      calendarCountry.value = data.country || 'IN';
+      calendarState.value = data.state || '';
+    }
+
+    function renderCountryOptions(filterText = '') {
+      if (!calendarCountry) return;
+      const term = filterText.trim().toLowerCase();
+      const list = !term
+        ? allCountries
+        : allCountries.filter(c => `${c.name} ${c.code}`.toLowerCase().includes(term));
+      calendarCountry.innerHTML = list.map(c => `<option value="${c.code}">${c.name} (${c.code})</option>`).join('');
+    }
+
+    function renderStateOptions(filterText = '') {
+      if (!calendarState) return;
+      const term = filterText.trim().toLowerCase();
+      const list = !term
+        ? allStates
+        : allStates.filter(s => `${s.name} ${s.code}`.toLowerCase().includes(term));
+      calendarState.innerHTML = '<option value="">All States</option>' + list.map(s => `<option value="${s.code}">${s.name} (${s.code})</option>`).join('');
+    }
+
+    function renderTargetTeams() {
+      if (!calendarTargetTeam) return;
+      calendarTargetTeam.innerHTML = '<option value="">No team</option>' + targetTeams
+        .map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    function renderTargetEmployees(filterText = '') {
+      if (!calendarTargetList) return;
+      const term = filterText.trim().toLowerCase();
+      const list = !term
+        ? targetEmployees
+        : targetEmployees.filter(e => `${e.name}`.toLowerCase().includes(term));
+      calendarTargetList.innerHTML = list.map(emp => `
+        <label class="flex items-center gap-2">
+          <input type="checkbox" class="ai-target-employee" value="${emp.employee_id_hash}">
+          <span>${emp.name}</span>
+        </label>
+      `).join('');
+    }
+
+    async function loadCalendarTargets() {
+      if (!calendarTargetList || !calendarTargetTeam) return;
+      const res = await fetch('/api/calendar/targets');
+      if (!res.ok) return;
+      const data = await res.json();
+      targetEmployees = data.employees || [];
+      targetTeams = data.teams || [];
+      renderTargetTeams();
+      renderTargetEmployees(calendarTargetSearch?.value || '');
+    }
+
+    async function refreshStatesForCountry(country) {
+      const res = await fetch(`/api/calendar/settings?country=${encodeURIComponent(country)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      allStates = data.states || [];
+      renderStateOptions(calendarStateSearch?.value || '');
+      if (calendarState) calendarState.value = '';
+    }
+
+    async function saveCalendarSettings() {
+      const country = calendarCountry?.value || 'IN';
+      const state = calendarState?.value || '';
+      await fetch('/api/calendar/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ country, state })
+      });
+      holidayCache = {};
+      calendarEventsCache = await fetchCalendarEvents();
+      const yearA = viewYear;
+      const yearB = new Date(viewYear, viewMonth + 1, 1).getFullYear();
+      await fetchHolidays(yearA);
+      if (yearB !== yearA) await fetchHolidays(yearB);
+      rebuildEventsIndex();
+      renderCalendar();
+      renderSelectedDayList(calendarDate?.value || '');
+    }
+
+    if (calendarSaveSettings) {
+      calendarSaveSettings.addEventListener('click', async () => {
+        calendarSaveSettings.disabled = true;
+        const originalText = calendarSaveSettings.textContent;
+        calendarSaveSettings.textContent = 'Saving...';
+        try {
+          await saveCalendarSettings();
+          calendarSaveSettings.textContent = 'Saved';
+          setTimeout(() => {
+            if (calendarSettings) {
+              calendarSettings.classList.add('hidden');
+              calendarSettings.classList.remove('flex');
+            }
+            calendarSaveSettings.textContent = originalText;
+            calendarSaveSettings.disabled = false;
+          }, 600);
+          return;
+        } catch (e) {
+          calendarSaveSettings.textContent = originalText;
+          calendarSaveSettings.disabled = false;
+        }
+      });
+    }
+
+    if (calendarType && calendarTargetSection) {
+      const syncTargetVisibility = () => {
+        const type = calendarType.value;
+        if (type === 'meeting' || type === 'task') {
+          calendarTargetSection.classList.remove('hidden');
+        } else {
+          calendarTargetSection.classList.add('hidden');
+        }
+      };
+      calendarType.addEventListener('change', syncTargetVisibility);
+      syncTargetVisibility();
+    }
+    if (calendarTargetSearch && calendarTargetList) {
+      calendarTargetSearch.addEventListener('input', () => {
+        renderTargetEmployees(calendarTargetSearch.value);
+      });
+    }
+
+    if (calendarCountrySearch && calendarCountry) {
+      calendarCountrySearch.addEventListener('input', () => {
+        renderCountryOptions(calendarCountrySearch.value);
+      });
+    }
+    if (calendarStateSearch && calendarState) {
+      calendarStateSearch.addEventListener('input', () => {
+        renderStateOptions(calendarStateSearch.value);
+      });
+    }
+    if (calendarCountry) {
+      calendarCountry.addEventListener('change', async () => {
+        const country = calendarCountry.value;
+        await refreshStatesForCountry(country);
+        if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
+        settingsSaveTimer = setTimeout(saveCalendarSettings, 400);
+      });
+    }
+    if (calendarState) {
+      calendarState.addEventListener('change', () => {
+        if (settingsSaveTimer) clearTimeout(settingsSaveTimer);
+        settingsSaveTimer = setTimeout(saveCalendarSettings, 400);
+      });
+    }
+
+    // calendar settings load is deferred to calendar open
+  </script>
+
+  <script src="/static/script.js?v=20250206"></script>
+  
+</body>
+</html>

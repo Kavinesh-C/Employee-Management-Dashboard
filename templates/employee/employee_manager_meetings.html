@@ -1,0 +1,416 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Manage Meetings{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --surface: #ffffff;
+    --surface-muted: #f8fafc;
+    --border: rgba(148, 163, 184, 0.35);
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  body {
+    background:
+      radial-gradient(900px 600px at 10% 5%, rgba(59, 130, 246, 0.08), transparent),
+      radial-gradient(900px 600px at 90% 10%, rgba(14, 165, 233, 0.08), transparent),
+      #ffffff;
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(10px);
+  }
+
+  .meeting-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .meeting-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(37, 99, 235, 0.12);
+  }
+  .meeting-card.active {
+    border-color: var(--primary);
+    box-shadow: 0 14px 30px rgba(37, 99, 235, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .status-pill {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+
+  .section-title {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+  }
+
+  .modal-backdrop {
+    background: rgba(15, 23, 42, 0.55);
+  }
+</style>
+
+<div class="max-w-6xl mx-auto px-6 py-10 space-y-6">
+  <div class="glass-card px-6 py-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <p class="section-title">Meeting Center</p>
+      <h1 class="text-2xl md:text-3xl font-black text-slate-900 mt-1">Manage Meetings</h1>
+      <p class="text-sm text-slate-500">Track upcoming, ongoing, and completed meetings.</p>
+    </div>
+    <div class="flex gap-2">
+      <a href="/manager/dashboard" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold">Back</a>
+      <a href="/manager/dashboard" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">New Meeting</a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1">
+      <div class="glass-card p-4 space-y-3" id="meetingCards">
+        {% for meeting in meetings %}
+        <button type="button"
+          class="meeting-card w-full text-left rounded-xl p-4"
+                data-id="{{ meeting.id }}"
+                data-title="{{ meeting.title|e }}"
+                data-description="{{ meeting.description|e }}"
+                data-datetime="{{ meeting.meeting_datetime }}"
+                data-datetime-input="{{ meeting.meeting_datetime_input }}"
+                data-link="{{ meeting.meeting_link|e }}"
+                data-project="{{ meeting.project_name|e }}"
+                data-assignees="{{ meeting.assignees|e }}"
+                data-organizer="{{ meeting.organizer|e }}"
+                data-attendees="{{ meeting.attendees|e }}"
+                data-attended="{{ meeting.attended|e }}"
+                data-not-attended="{{ meeting.not_attended|e }}">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p class="font-semibold text-slate-900">{{ meeting.title }}</p>
+              <p class="text-xs text-slate-500 mt-1">{{ meeting.meeting_datetime }}</p>
+            </div>
+            {% if meeting.status == "Ongoing" %}
+            <span class="status-pill text-emerald-700 bg-emerald-50">Ongoing</span>
+            {% elif meeting.status == "Completed" %}
+            <span class="status-pill text-slate-600 bg-slate-100">Completed</span>
+            {% else %}
+            <span class="status-pill text-blue-600 bg-blue-50">Upcoming</span>
+            {% endif %}
+          </div>
+          <p class="text-xs text-slate-500 mt-2 line-clamp-2">{{ meeting.description or "No description" }}</p>
+        </button>
+        {% else %}
+        <div class="text-sm text-slate-500 border border-dashed rounded-xl p-6 text-center">No meetings scheduled yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="lg:col-span-2">
+      <div class="glass-card p-6" id="meetingDetail">
+        <div class="text-center text-slate-500" id="emptyDetail">
+          Select a meeting to view details.
+        </div>
+
+        <div id="detailContent" class="hidden space-y-4">
+          <div>
+            <h2 class="text-xl font-bold" id="detailTitle"></h2>
+            <p class="text-sm text-slate-500" id="detailDate"></p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border rounded-xl p-4 bg-slate-50/60">
+              <p class="section-title">Organizer</p>
+              <p class="text-sm font-medium" id="detailOrganizer"></p>
+            </div>
+            <div class="border rounded-xl p-4 bg-slate-50/60">
+              <p class="section-title">Attendees</p>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-medium" id="detailAttendees"></p>
+                <button type="button" id="viewAttendeesBtn" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100">View</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border rounded-xl p-4 bg-slate-50/60">
+              <p class="section-title">Project</p>
+              <p class="text-sm font-medium" id="detailProject"></p>
+            </div>
+            <div class="border rounded-xl p-4 bg-slate-50/60">
+              <p class="section-title">All Invited</p>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-medium" id="detailAssignees"></p>
+                <button type="button" id="viewInvitedBtn" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100">View</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="border rounded-xl p-4 bg-emerald-50/50">
+              <p class="section-title">Attended</p>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-medium" id="detailAttended"></p>
+                <button type="button" id="viewAttendedBtn" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50">View</button>
+              </div>
+            </div>
+            <div class="border rounded-xl p-4 bg-rose-50/50">
+              <p class="section-title">Not Attended</p>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-sm font-medium" id="detailNotAttended"></p>
+                <button type="button" id="viewNotAttendedBtn" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border border-rose-200 text-rose-700 hover:bg-rose-50">View</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="border rounded-xl p-4 bg-slate-50/60">
+            <p class="section-title mb-1">Description</p>
+            <p class="text-sm text-slate-700" id="detailDescription"></p>
+          </div>
+
+          <div class="border rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap bg-slate-50/60">
+            <div>
+              <p class="section-title">Meeting Link</p>
+              <a id="detailLink" href="#" target="_blank" class="text-sm text-blue-600 hover:underline break-all"></a>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" id="copyLinkBtn" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold">Copy Link</button>
+              <a id="joinLinkBtn" href="#" target="_blank" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Join</a>
+            </div>
+          </div>
+
+          <div class="flex gap-2 flex-wrap">
+            <button type="button" id="editMeetingBtn" class="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">Edit</button>
+            <form id="deleteMeetingForm" action="/manager/meeting/delete" method="POST">
+              <input type="hidden" name="meeting_id" id="deleteMeetingId">
+              <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold">Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="listModal" class="fixed inset-0 hidden items-center justify-center">
+  <div class="absolute inset-0 modal-backdrop" onclick="closeListModal()"></div>
+  <div class="relative bg-white rounded-2xl p-6 w-full max-w-lg mx-4">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h3 class="text-lg font-bold" id="listModalTitle">Attendees</h3>
+      <button type="button" onclick="closeListModal()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold">Close</button>
+    </div>
+    <div class="border rounded-xl p-4 bg-slate-50/60">
+      <ul id="listModalItems" class="space-y-2 text-sm text-slate-700 max-h-72 overflow-y-auto"></ul>
+    </div>
+  </div>
+</div>
+
+<div id="editModal" class="fixed inset-0 hidden items-center justify-center">
+  <div class="absolute inset-0 modal-backdrop" onclick="closeEditModal()"></div>
+  <div class="relative bg-white rounded-2xl p-6 w-full max-w-lg mx-4">
+    <h3 class="text-lg font-bold mb-4">Edit Meeting</h3>
+    <form action="/manager/meeting/update" method="POST" class="space-y-4">
+      <input type="hidden" name="meeting_id" id="editMeetingId">
+      <div>
+        <label class="text-xs font-semibold text-slate-500">Title</label>
+        <input type="text" name="title" id="editTitle" class="w-full border rounded-lg px-3 py-2 text-sm" required>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-500">Date & Time</label>
+        <input type="datetime-local" name="meeting_datetime" id="editDateTime" class="w-full border rounded-lg px-3 py-2 text-sm" required>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-500">Description</label>
+        <textarea name="description" id="editDescription" class="w-full border rounded-lg px-3 py-2 text-sm" rows="4"></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeEditModal()" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-sm font-semibold">Cancel</button>
+        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const cards = Array.from(document.querySelectorAll('.meeting-card'));
+  const emptyDetail = document.getElementById('emptyDetail');
+  const detailContent = document.getElementById('detailContent');
+  const detailTitle = document.getElementById('detailTitle');
+  const detailDate = document.getElementById('detailDate');
+  const detailProject = document.getElementById('detailProject');
+  const detailAssignees = document.getElementById('detailAssignees');
+  const detailDescription = document.getElementById('detailDescription');
+  const detailOrganizer = document.getElementById('detailOrganizer');
+  const detailAttendees = document.getElementById('detailAttendees');
+  const detailAttended = document.getElementById('detailAttended');
+  const detailNotAttended = document.getElementById('detailNotAttended');
+  const detailLink = document.getElementById('detailLink');
+  const joinLinkBtn = document.getElementById('joinLinkBtn');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
+  const deleteMeetingId = document.getElementById('deleteMeetingId');
+  const editMeetingBtn = document.getElementById('editMeetingBtn');
+  const deleteMeetingForm = document.getElementById('deleteMeetingForm');
+  const viewAttendeesBtn = document.getElementById('viewAttendeesBtn');
+  const viewInvitedBtn = document.getElementById('viewInvitedBtn');
+  const viewAttendedBtn = document.getElementById('viewAttendedBtn');
+  const viewNotAttendedBtn = document.getElementById('viewNotAttendedBtn');
+  const listModal = document.getElementById('listModal');
+  const listModalTitle = document.getElementById('listModalTitle');
+  const listModalItems = document.getElementById('listModalItems');
+  let selectedCard = null;
+
+  function normalizeList(value) {
+    if (!value) return [];
+    return value
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  function openListModal(title, listValue) {
+    const items = normalizeList(listValue);
+    listModalTitle.textContent = title;
+    listModalItems.innerHTML = '';
+
+    if (items.length === 0) {
+      const emptyItem = document.createElement('li');
+      emptyItem.textContent = 'No entries available.';
+      emptyItem.className = 'text-slate-500';
+      listModalItems.appendChild(emptyItem);
+    } else {
+      items.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'px-3 py-2 bg-white rounded-lg border border-slate-100';
+        li.textContent = item;
+        listModalItems.appendChild(li);
+      });
+    }
+
+    listModal.classList.remove('hidden');
+    listModal.classList.add('flex');
+  }
+
+  function selectCard(card) {
+    cards.forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selectedCard = card;
+
+    emptyDetail.classList.add('hidden');
+    detailContent.classList.remove('hidden');
+
+    detailTitle.textContent = card.dataset.title || 'Untitled Meeting';
+    detailDate.textContent = card.dataset.datetime || '';
+    detailProject.textContent = card.dataset.project || 'Not assigned';
+    detailOrganizer.textContent = card.dataset.organizer || '-';
+    detailAttendees.textContent = card.dataset.attendees || 'No attendees';
+    detailAssignees.textContent = card.dataset.assignees || 'No attendees';
+    detailDescription.textContent = card.dataset.description || 'No description provided.';
+    detailAttended.textContent = card.dataset.attended || 'None yet';
+    detailNotAttended.textContent = card.dataset.notAttended || 'All attended';
+
+    viewAttendeesBtn.disabled = normalizeList(card.dataset.attendees).length === 0;
+    viewInvitedBtn.disabled = normalizeList(card.dataset.assignees).length === 0;
+    viewAttendedBtn.disabled = normalizeList(card.dataset.attended).length === 0;
+    viewNotAttendedBtn.disabled = normalizeList(card.dataset.notAttended).length === 0;
+
+    const link = card.dataset.link || '';
+    detailLink.textContent = link || 'No link available';
+    detailLink.href = link || '#';
+    joinLinkBtn.href = link || '#';
+    joinLinkBtn.classList.toggle('pointer-events-none', !link);
+    joinLinkBtn.classList.toggle('opacity-50', !link);
+    copyLinkBtn.disabled = !link;
+
+    deleteMeetingId.value = card.dataset.id;
+
+    editMeetingBtn.onclick = () => openEditModal(card);
+  }
+
+  function openEditModal(card) {
+    document.getElementById('editMeetingId').value = card.dataset.id;
+    document.getElementById('editTitle').value = card.dataset.title || '';
+    document.getElementById('editDateTime').value = card.dataset.datetimeInput || '';
+    document.getElementById('editDescription').value = card.dataset.description || '';
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editModal').classList.add('flex');
+  }
+
+  function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  function closeListModal() {
+    listModal.classList.add('hidden');
+    listModal.classList.remove('flex');
+  }
+
+  cards.forEach(card => card.addEventListener('click', () => selectCard(card)));
+
+  if (cards.length > 0) {
+    selectCard(cards[0]);
+  }
+
+  copyLinkBtn?.addEventListener('click', () => {
+    if (!detailLink.href || detailLink.href === '#') return;
+    navigator.clipboard.writeText(detailLink.href);
+    copyLinkBtn.textContent = 'Copied';
+    setTimeout(() => { copyLinkBtn.textContent = 'Copy Link'; }, 1500);
+  });
+
+  deleteMeetingForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const ok = window.showConfirm ? await window.showConfirm('Delete this meeting?') : confirm('Delete this meeting?');
+    if (ok) deleteMeetingForm.submit();
+  });
+
+  viewAttendeesBtn?.addEventListener('click', () => {
+    if (!selectedCard) return;
+    openListModal('Attendees', selectedCard.dataset.attendees || '');
+  });
+
+  viewInvitedBtn?.addEventListener('click', () => {
+    if (!selectedCard) return;
+    openListModal('All Invited', selectedCard.dataset.assignees || '');
+  });
+
+  viewAttendedBtn?.addEventListener('click', () => {
+    if (!selectedCard) return;
+    openListModal('Attended', selectedCard.dataset.attended || '');
+  });
+
+  viewNotAttendedBtn?.addEventListener('click', () => {
+    if (!selectedCard) return;
+    openListModal('Not Attended', selectedCard.dataset.notAttended || '');
+  });
+
+  window.closeEditModal = closeEditModal;
+  window.closeListModal = closeListModal;
+</script>
+
+<script>
+  (function () {
+    const pad = (n) => String(n).padStart(2, '0');
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    const todayStart = `${todayStr}T00:00`;
+    const editDateTime = document.getElementById('editDateTime');
+    if (editDateTime) {
+      editDateTime.min = todayStart;
+    }
+  })();
+</script>
+{% endblock %}

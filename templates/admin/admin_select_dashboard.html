@@ -1,0 +1,46 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Select Dashboard — TeamSync{% endblock %}
+
+{% block page_title %}DASHBOARD_SELECTOR{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto pt-12">
+    
+    <div class="border-l-4 border-blue-600 pl-6 mb-12">
+        <h2 class="text-3xl font-black uppercase tracking-tighter">Welcome, {{ user.name }}</h2>
+        <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-bold">Please select a workspace to continue</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <a href="/admin" class="group border border-[var(--border)] p-10 hover:bg-blue-600 transition-all duration-300">
+            <div class="flex flex-col h-full">
+                <span class="text-[10px] font-black tracking-[0.3em] text-blue-600 group-hover:text-blue-200 uppercase mb-4">Management Tools</span>
+                <h3 class="text-4xl font-black uppercase mb-4 group-hover:text-white">Admin<br>Dashboard</h3>
+                <p class="text-slate-500 group-hover:text-blue-100 text-sm mb-8">Manage team attendance, payroll processing, and employee records.</p>
+                <div class="mt-auto text-blue-600 group-hover:text-white">
+                    <i class="bi bi-arrow-right text-2xl"></i>
+                </div>
+            </div>
+        </a>
+
+        <a href="/employee" class="group border border-[var(--border)] p-10 hover:bg-slate-900 transition-all duration-300">
+            <div class="flex flex-col h-full">
+                <span class="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase mb-4">Employee Tools</span>
+                <h3 class="text-4xl font-black uppercase mb-4 group-hover:text-white">User<br>Workspace</h3>
+                <p class="text-slate-500 group-hover:text-slate-300 text-sm mb-8">View your personal attendance, tasks, and monthly payslips.</p>
+                <div class="mt-auto text-slate-900 group-hover:text-white">
+                    <i class="bi bi-arrow-right text-2xl"></i>
+                </div>
+            </div>
+        </a>
+
+    </div>
+
+    <div class="mt-8 flex items-center justify-between text-[10px] font-mono text-slate-400 uppercase tracking-widest px-2">
+        <span>Employee ID: {{ user.employee_id }}</span>
+        <span>TeamSync Operations</span>
+    </div>
+</div>
+{% endblock %}

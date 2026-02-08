@@ -1,0 +1,182 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Team Members - {{ team.name }}{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --sidebar-dark: #020617;
+  --bg-main: #f8fafc;
+  --border-color: #e2e8f0;
+  --accent-navy: #1b2552;
+  --accent-emerald: #10b981;
+  --radius-standard: 0.75rem;
+}
+
+body {
+  background-color: var(--bg-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1e293b;
+}
+
+.header-section {
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 2.5rem 2rem;
+  sticky top: 0;
+  z-index: 40;
+}
+
+.header-title {
+  font-size: 2.5rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #000;
+}
+
+.label-mono {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+.member-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-standard);
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.member-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+}
+
+.avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.875rem;
+}
+
+.btn-back {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-standard);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--accent-navy);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-back:hover {
+  background: #f1f5f9;
+  border-color: var(--accent-navy);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #cbd5e1;
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+</style>
+
+<div class="header-section flex justify-between items-end">
+  <div>
+    <p class="label-mono mb-2">Team Roster</p>
+    <h1 class="header-title">{{ team.name }}</h1>
+  </div>
+  <a href="/admin/manage_teams" class="btn-back">
+    ← Back to Teams
+  </a>
+</div>
+
+<div class="max-w-[1200px] mx-auto p-8">
+  
+  {% if members %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for member in members %}
+      <div class="member-card">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="avatar bg-indigo-100 text-indigo-700">
+              {{ member.name[0]|upper }}
+            </div>
+            <div>
+              <p class="text-sm font-bold text-slate-900">{{ member.name }}</p>
+              <p class="text-xs text-slate-400 font-mono">{{ member.employee_id }}</p>
+            </div>
+          </div>
+          {% if member.role == "admin" %}
+            <span class="px-2 py-1 bg-red-100 text-red-700 text-[9px] font-black uppercase rounded">Admin</span>
+          {% elif member.role == "manager" %}
+            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-[9px] font-black uppercase rounded">Manager</span>
+          {% else %}
+            <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-black uppercase rounded">Staff</span>
+          {% endif %}
+        </div>
+
+        <div class="space-y-3 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Email:</span>
+            <span class="text-slate-900 font-medium">{{ member.email or 'N/A' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Department:</span>
+            <span class="text-slate-900 font-medium">{{ member.department or 'N/A' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Status:</span>
+            <span class="font-medium">
+              {% if member.is_active %}
+                <span class="text-emerald-600">Active</span>
+              {% else %}
+                <span class="text-slate-400">Inactive</span>
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mt-12 p-6 bg-slate-50 border border-slate-200 rounded">
+      <p class="text-sm text-slate-600">
+        <span class="font-bold text-slate-900">{{ members|length }}</span>
+        total staff member{{ 's' if members|length != 1 else '' }} assigned to this team
+      </p>
+    </div>
+
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">👥</div>
+      <p class="text-lg font-bold text-slate-400 mb-2">No team members</p>
+      <p class="text-sm text-slate-400">This team doesn't have any assigned staff yet.</p>
+    </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Leave Request{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================
+   PREMIUM CORPORATE LEAVE STYLES
+   ========================================= */
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(226, 232, 240, 0.7);
+  --corp-navy: #0f172a;
+  --indigo-primary: #4f46e5;
+  --slate-500: #64748b;
+}
+
+/* Glass Card Polish */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Input Fields */
+.form-field {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.form-field:focus {
+  border-color: var(--indigo-primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.08);
+  outline: none;
+}
+
+/* Label Styling */
+.field-label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--slate-500);
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* History List Styling (Instead of basic table) */
+.history-row {
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+
+.history-row:hover {
+  border-color: #e2e8f0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Status Badges */
+.status-pill {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+.status-pending { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+.status-approved { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
+.status-rejected { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
+
+/* Entrance Animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: slideUp 0.6s ease forwards;
+}
+@keyframes slideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="max-w-5xl mx-auto space-y-8 p-4">
+
+  <div class="glass-card rounded-[2rem] p-8 reveal">
+    <div class="flex items-center gap-4 mb-8">
+      <div class="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Apply for Absence</h2>
+        <p class="text-slate-500 text-sm font-medium">Your requests will be forwarded to your department head.</p>
+      </div>
+    </div>
+
+    <form method="post" action="/employee/leave/apply" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <div class="space-y-1">
+        <label class="field-label">Departure Date</label>
+        <input type="date" name="start_date" required class="form-field w-full">
+      </div>
+
+      <div class="space-y-1">
+        <label class="field-label">Return Date</label>
+        <input type="date" name="end_date" required class="form-field w-full">
+      </div>
+
+      <div class="md:col-span-2 space-y-1">
+        <label class="field-label">Reason for Absence</label>
+        <textarea name="reason" rows="3" placeholder="Briefly explain the purpose of your leave..." required 
+                  class="form-field w-full resize-none"></textarea>
+      </div>
+      
+      <div class="md:col-span-2 pt-2">
+        <button class="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2">
+          <span>Submit Request</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="space-y-4 reveal" style="animation-delay: 0.15s;">
+    <div class="flex items-center justify-between px-2">
+        <h3 class="text-lg font-bold text-slate-900">Request History</h3>
+        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ leaves|length }} RECORDS</span>
+    </div>
+
+    <div class="space-y-3">
+      {% if leaves %}
+        {% for l in leaves %}
+        <div class="history-row p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          
+          <div class="flex items-center gap-6">
+            <div class="flex flex-col text-center min-w-[60px]">
+                <span class="text-[10px] font-bold text-slate-400 uppercase">Duration</span>
+                <span class="text-sm font-extrabold text-slate-700">
+                    {% if l.start_date == l.end_date %}1 Day{% else %}Multi{% endif %}
+                </span>
+            </div>
+            
+            <div class="h-8 w-px bg-slate-100 hidden md:block"></div>
+
+            <div>
+              <p class="font-bold text-slate-900">
+                {{ l.start_date }} <span class="mx-2 text-slate-300">→</span> {{ l.end_date }}
+              </p>
+              <p class="text-xs text-slate-500 font-medium mt-0.5">{{ l.reason }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-4">
+            {% if l.status == 'Pending' %}
+                <span class="status-pill status-pending">In Review</span>
+            {% elif l.status == 'Approved' %}
+                <span class="status-pill status-approved">Approved</span>
+            {% else %}
+                <span class="status-pill status-rejected">Declined</span>
+            {% endif %}
+
+            <button class="p-2 text-slate-300 hover:text-slate-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+            </button>
+          </div>
+          
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="glass-card rounded-3xl p-12 text-center">
+          <p class="text-slate-400 font-bold uppercase tracking-widest text-sm">No leave records found</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+  (function () {
+    const pad = (n) => String(n).padStart(2, '0');
+    const startInput = document.querySelector('input[name="start_date"]');
+    const endInput = document.querySelector('input[name="end_date"]');
+    if (!startInput || !endInput) return;
+
+    const today = new Date();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}`;
+
+    startInput.min = tomorrowStr;
+
+    const syncEndMin = () => {
+      const minDate = startInput.value || tomorrowStr;
+      endInput.min = minDate;
+      if (endInput.value && endInput.value < minDate) {
+        endInput.value = minDate;
+      }
+    };
+
+    startInput.addEventListener('change', syncEndMin);
+    syncEndMin();
+  })();
+</script>
+
+{% endblock %}

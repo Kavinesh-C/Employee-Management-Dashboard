@@ -1,0 +1,129 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Leave Approvals | TeamSync{% endblock %}
+
+{% block page_title %}LEAVE_REQUEST_QUEUE{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Pending Review</p>
+            <p class="text-4xl font-black tracking-tighter text-blue-600">{{ pending|length }}</p>
+        </div>
+        <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">System Status</p>
+            <p class="text-sm font-bold uppercase tracking-tight text-slate-900 mt-2">Operational // Ready</p>
+        </div>
+        <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Queue Priority</p>
+            <p class="text-sm font-bold uppercase tracking-tight text-slate-500 mt-2">Standard Processing</p>
+        </div>
+    </div>
+
+    <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+            <div class="flex items-center gap-3">
+                <div class="h-5 w-1 bg-blue-600"></div>
+                <h3 class="text-xs font-black uppercase tracking-[0.2em]">Incoming Requests</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" class="px-3 py-1 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-white filter-pill active" data-filter="all">All</button>
+                <button type="button" class="px-3 py-1 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-white filter-pill" data-filter="pending">Pending</button>
+                <button type="button" class="px-3 py-1 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-white filter-pill" data-filter="approved">Approved</button>
+                <button type="button" class="px-3 py-1 border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 bg-white filter-pill" data-filter="rejected">Rejected</button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-[var(--border)] text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <th class="pb-4 px-2">Personnel</th>
+                        <th class="pb-4">Requested Period</th>
+                        <th class="pb-4">Statement</th>
+                        <th class="pb-4 text-center">Current Status</th>
+                        <th class="pb-4 text-right">Administrative Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[var(--border)]">
+                    {% for l in pending %}
+                    <tr class="hover:bg-slate-50 transition-colors group" data-status="{{ l.status|lower }}">
+                        <td class="py-5 px-2">
+                            <p class="font-bold text-sm">{{ l.user.name }}</p>
+                            <p class="executive-mono text-[9px] text-slate-500 uppercase">Dept: {{ l.user.department|default('General') }}</p>
+                        </td>
+                        <td class="py-5">
+                            <p class="text-xs font-bold">{{ l.start_date }} <span class="text-slate-400 mx-1">→</span> {{ l.end_date }}</p>
+                        </td>
+                        <td class="py-5">
+                            <p class="text-xs text-slate-600 max-w-xs truncate" title="{{ l.reason }}">{{ l.reason }}</p>
+                        </td>
+                        <td class="py-5 text-center">
+                            <span class="px-2 py-1 text-[9px] font-black uppercase tracking-widest border border-blue-100 bg-blue-50 text-blue-600">
+                                {{ l.status }}
+                            </span>
+                        </td>
+                        <td class="py-5 text-right">
+                            {% if l.status == 'Pending' %}
+                            <div class="flex justify-end gap-2">
+                                <form method="post" action="/admin/leave/update">
+                                    <input type="hidden" name="leave_id" value="{{ l.id }}">
+                                    <input type="hidden" name="action" value="approve">
+                                    <button class="px-4 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">
+                                        Approve
+                                    </button>
+                                </form>
+
+                                <form method="post" action="/admin/leave/update">
+                                    <input type="hidden" name="leave_id" value="{{ l.id }}">
+                                    <input type="hidden" name="action" value="reject">
+                                    <button class="px-4 py-2 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all">
+                                        Reject
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    {% if not pending %}
+                    <tr>
+                        <td colspan="5" class="py-12 text-center">
+                            <p class="executive-mono text-slate-400 text-[10px] uppercase tracking-widest">No pending requests in queue</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+const leaveFilterButtons = Array.from(document.querySelectorAll('.filter-pill'));
+const leaveRows = Array.from(document.querySelectorAll('tbody tr[data-status]'));
+
+function applyLeaveFilter(status) {
+    leaveRows.forEach(row => {
+        const rowStatus = row.dataset.status || '';
+        if (status === 'all' || rowStatus === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+leaveFilterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        leaveFilterButtons.forEach(b => b.classList.remove('active', 'bg-slate-900', 'text-white'));
+        btn.classList.add('active', 'bg-slate-900', 'text-white');
+        applyLeaveFilter(btn.dataset.filter || 'all');
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,247 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}My Tasks{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================
+   PREMIUM CORPORATE TASK STYLES
+   ========================================= */
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(226, 232, 240, 0.6);
+  --corp-navy: #0f172a;
+  --accent-blue: #2563eb;
+  --pending: #f59e0b;
+  --progress: #3b82f6;
+  --done: #10b981;
+}
+
+/* Tab Styling */
+.tab-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  background: white;
+  border: 1px solid var(--glass-border);
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+.tab-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.tab-btn.active {
+  background: var(--corp-navy);
+  color: white;
+  border-color: var(--corp-navy);
+}
+
+/* Card & Glass Polish */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(0, 0, 0, 0.04);
+}
+
+/* Input & Form Refinement */
+.form-input {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+.form-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05);
+  outline: none;
+}
+
+/* Task Card Interactivity */
+.task-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left-width: 4px;
+}
+.task-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.05);
+}
+
+/* Priority Badges */
+.badge-red { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+.badge-blue { background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; }
+.badge-gray { background: #f8fafc; color: #64748b; border: 1px solid #f1f5f9; }
+.badge-purple { background: #faf5ff; color: #7e22ce; border: 1px solid #f3e8ff; }
+
+</style>
+
+<div class="max-w-6xl mx-auto space-y-6 p-4">
+
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        
+        <div class="lg:col-span-2 glass rounded-3xl p-8 flex flex-col items-center justify-center">
+            <h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Efficiency Matrix</h3>
+            <div class="relative">
+                <canvas id="taskChart" width="220" height="220"></canvas>
+            </div>
+        </div>
+
+        <div class="lg:col-span-3 glass rounded-3xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 mb-4">Create New Task</h3>
+            <form method="post" action="/employee/tasks/add" class="space-y-4">
+                <input name="title" placeholder="What needs to be done?" required
+                       class="form-input w-full px-4 py-3 font-medium text-slate-800"/>
+
+                <textarea name="description" placeholder="Add a description..."
+                          class="form-input w-full px-4 py-3 h-20 text-sm"></textarea>
+
+                <div class="flex flex-wrap gap-3">
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Priority</label>
+                        <select name="priority" class="form-input w-full mt-1 px-3 py-2 text-sm font-semibold">
+                            <option value="low">Low Priority</option>
+                            <option value="medium" selected>Medium Priority</option>
+                            <option value="high">Critical</option>
+                        </select>
+                    </div>
+
+                    <div class="flex-1 min-w-[140px]">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Due Date</label>
+                        <input type="date" name="due_date" class="form-input w-full mt-1 px-3 py-2 text-sm"/>
+                    </div>
+                    
+                    <div class="flex-1 min-w-[200px]">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Assign To</label>
+                        <input id="employeeTaskAssigneeSearch" type="text" placeholder="Search employees..." class="form-input w-full mt-1 px-3 py-2 text-sm mb-2" />
+                        <select id="taskAssigneeSelect" name="assignee" class="form-input w-full mt-1 px-3 py-2 text-sm" size="6" style="max-height:180px; overflow:auto;">
+                            <option value="">(Assign to self)</option>
+                            {% for emp in (employees if employees is defined else []) %}
+                            <option value="{{ emp.employee_id }}">{{ emp.name }} — {{ emp.employee_id }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <button class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+                    Deploy Task
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flex flex-col md:flex-row justify-between items-center gap-4 py-4">
+        <div class="flex gap-2 overflow-x-auto pb-2 w-full md:w-auto">
+            <a href="?filter=all" class="tab-btn active text-xs font-bold uppercase tracking-wider">All</a>
+            <a href="?filter=pending" class="tab-btn text-xs font-bold uppercase tracking-wider">Pending</a>
+            <a href="?filter=in-progress" class="tab-btn text-xs font-bold uppercase tracking-wider">Active</a>
+            <a href="?filter=done" class="tab-btn text-xs font-bold uppercase tracking-wider">Resolved</a>
+        </div>
+
+        <a href="/employee/team" class="flex items-center gap-2 text-sm font-bold text-blue-600 hover:underline">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Team Dashboard
+        </a>
+    </div>
+
+    <div class="space-y-4">
+        {% for t in tasks %}
+        <div class="task-card glass p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 
+                    {% if t.priority == 'high' %} border-l-red-500 {% elif t.priority == 'medium' %} border-l-blue-500 {% else %} border-l-slate-300 {% endif %}">
+
+            <div class="flex-1 space-y-2">
+                <h4 class="font-extrabold text-slate-900 text-xl tracking-tight">{{ t.title }}</h4>
+                <p class="text-slate-500 text-sm font-medium max-w-2xl">{{ t.description }}</p>
+
+                <div class="flex gap-2 pt-2">
+                    {% if t.priority == 'high' %}
+                        <span class="text-[10px] px-3 py-1 rounded-full badge-red font-bold uppercase">Critical</span>
+                    {% elif t.priority == 'medium' %}
+                        <span class="text-[10px] px-3 py-1 rounded-full badge-blue font-bold uppercase">Standard</span>
+                    {% else %}
+                        <span class="text-[10px] px-3 py-1 rounded-full badge-gray font-bold uppercase">Backlog</span>
+                    {% endif %}
+
+                    {% if t.due_date %}
+                        <span class="text-[10px] px-3 py-1 rounded-full badge-purple font-bold uppercase">
+                            Due {{ t.due_date.strftime("%d %b") }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+                <form method="post" action="/employee/tasks/update" class="flex-1 md:flex-none">
+                    <input type="hidden" name="task_id" value="{{ t.id }}"/>
+                    <select name="status"
+                            class="form-input w-full px-4 py-2 text-sm font-bold bg-slate-50 border-none cursor-pointer"
+                            onchange="this.form.submit()">
+                        <option value="pending" {% if t.status == 'pending' %}selected{% endif %}>⏸ Pending</option>
+                        <option value="in-progress" {% if t.status == 'in-progress' %}selected{% endif %}>⚡ In-Progress</option>
+                        <option value="done" {% if t.status == 'done' %}selected{% endif %}>✅ Completed</option>
+                    </select>
+                </form>
+
+                <button form="delete-form-{{ t.id }}"
+                        class="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <form id="delete-form-{{ t.id }}" method="post" action="/employee/tasks/delete" class="hidden">
+                    <input type="hidden" name="task_id" value="{{ t.id }}"/>
+                </form>
+            </div>
+
+        </div>
+        {% else %}
+            <div class="glass rounded-[2rem] p-20 text-center">
+                <p class="text-slate-400 font-bold uppercase tracking-widest">Inbox Zero Achieved</p>
+            </div>
+        {% endfor %}
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('taskChart');
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Pending', 'In-Progress', 'Completed'],
+      datasets: [{
+        data: [{{ pending }}, {{ in_progress }}, {{ done }}],
+        backgroundColor: ['#f59e0b', '#3b82f6', '#10b981'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      cutout: '80%',
+      responsive: false,
+      animation: false   // 🔥 IMPORTANT
+    }
+  });
+});
+</script>
+
+<script>
+    (function () {
+        const pad = (n) => String(n).padStart(2, '0');
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+        document.querySelectorAll('input[name="due_date"]').forEach((input) => {
+            input.min = todayStr;
+        });
+    })();
+</script>
+{% endblock %}

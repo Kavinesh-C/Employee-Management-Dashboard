@@ -1,0 +1,249 @@
+{% extends "common/layout_base.html" %}
+{% block title %}My Attendance{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================
+   PREMIUM CORPORATE ATTENDANCE STYLES
+   ========================================= */
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(226, 232, 240, 0.7);
+  --corp-blue: #1e293b;
+  --accent-blue: #2563eb;
+  --success-emerald: #10b981;
+  --slate-500: #64748b;
+}
+
+/* Card Refinement */
+.att-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 
+              0 10px 15px -3px rgba(0, 0, 0, 0.04);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* KPI Interaction */
+.att-kpi {
+  position: relative;
+  overflow: hidden;
+}
+
+.att-kpi:hover {
+  transform: translateY(-4px);
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.06);
+}
+
+/* Typography Enhancements */
+.kpi-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: var(--slate-500);
+}
+
+/* Form Controls */
+input[type="date"] {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+  color: #1e293b;
+}
+
+input[type="date"]:focus {
+  background: #fff;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+  outline: none;
+}
+
+/* History List */
+.log-row {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+
+.log-row:hover {
+  border-color: #e2e8f0;
+  background: #fcfdfe;
+  transform: scale(1.005);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+/* Status Indicator Dot */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background: var(--success-emerald);
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+.status-inactive {
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+}
+
+/* Smooth Entrance */
+.fade-in {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: premiumReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+
+@keyframes premiumReveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+<div class="max-w-6xl mx-auto space-y-8 p-4">
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 ">
+
+    <div class="att-card att-kpi p-6 fade-in rounded-xl ">
+      <p class="kpi-label">Total Hours (Lifetime)</p>
+      <p class="mt-2 text-4xl font-extrabold text-slate-900 tracking-tight">
+        {{ total_hours }} <span class="text-lg font-medium text-slate-400">hrs</span>
+      </p>
+    </div>
+
+    <div class="att-card att-kpi p-6 fade-in delay-1 rounded-xl ">
+      <p class="kpi-label">This Month</p>
+      <p class="mt-2 text-4xl font-extrabold text-blue-600 tracking-tight" id="month-hours">
+        <span class="animate-pulse text-slate-300">...</span>
+      </p>
+    </div>
+
+    <div class="att-card att-kpi p-6 fade-in delay-2 rounded-xl ">
+      <p class="kpi-label">Real-time Status</p>
+      <div class="mt-3 flex items-center">
+        {% if logs and not logs[0].exit_time %}
+          <span class="status-dot"></span>
+          <span class="text-xl font-bold text-slate-800">Active Now</span>
+        {% else %}
+          <span class="status-dot status-inactive"></span>
+          <span class="text-xl font-bold text-slate-800">Signed Out</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <div class="att-card p-6 flex flex-col md:flex-row gap-6 items-end fade-in delay-3 rounded-xl " >
+    <div class="flex-1 w-full">
+      <label class="kpi-label mb-2 block">Start Date</label>
+      <input type="date" class="w-full">
+    </div>
+
+    <div class="flex-1 w-full">
+      <label class="kpi-label mb-2 block">End Date</label>
+      <input type="date" class="w-full">
+    </div>
+
+    <button class="w-full md:w-auto px-8 py-2.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+      Filter Records
+    </button>
+  </div>
+
+  <div class="att-card p-8 fade-in delay-2 rounded-xl ">
+    <div class="flex justify-between items-center mb-8 ">
+      <h3 class="text-xl font-bold text-slate-900">Attendance History</h3>
+      <span class="text-xs font-semibold px-3 py-1 bg-slate-100 text-slate-600 rounded-full uppercase tracking-wider">
+        {{ logs|length }} Logs Found
+      </span>
+    </div>
+
+    <div class="space-y-3">
+      {% if logs %}
+        {% for a in logs %}
+        <div class="log-row p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          
+          <div class="flex items-center gap-4">
+            <div class="h-12 w-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-bold text-slate-900 text-lg">
+                {{ a.entry_time.strftime("%d %b %Y") }}
+              </p>
+              <p class="text-sm text-slate-500 font-medium">
+                {{ a.entry_time.strftime("%I:%M %p") }} 
+                <span class="mx-2 text-slate-300">|</span> 
+                {% if a.exit_time %}
+                  {{ a.exit_time.strftime("%I:%M %p") }}
+                {% else %}
+                  <span class="text-emerald-600 font-bold">Currently On-site</span>
+                {% endif %}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-col md:items-end">
+            <div class="flex items-center gap-2 mb-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span class="text-sm font-semibold text-slate-700">{{ a.location_name }} ({{ a.room_no }})</span>
+            </div>
+            
+            {% if a.duration %}
+              <div class="text-lg font-black text-slate-900">
+                {{ "%.2f"|format(a.duration) }} <span class="text-xs font-bold text-slate-400 uppercase">hrs</span>
+              </div>
+            {% endif %}
+          </div>
+          
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-center py-20">
+          <div class="text-slate-300 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <p class="text-slate-500 font-medium">No activity logs found for this period.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Fetch logic with safety check
+document.addEventListener('DOMContentLoaded', () => {
+  fetch("/api/month-hours")
+    .then(res => res.json())
+    .then(data => {
+      const display = document.getElementById("month-hours");
+      if(data.total_hours !== undefined) {
+        display.innerHTML = `${data.total_hours} <span class="text-lg font-medium text-slate-400">hrs</span>`;
+      }
+    })
+    .catch(err => {
+      document.getElementById("month-hours").textContent = "N/A";
+    });
+});
+</script>
+
+{% endblock %}

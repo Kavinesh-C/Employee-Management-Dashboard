@@ -1,0 +1,648 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Operations Overview{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --sidebar-dark: #020617; /* Dark Navy */
+  --bg-main: #f8fafc;
+  --border-color: #e2e8f0;
+  --accent-navy:#1b2552;  /* Updated Variable */
+  --accent-emerald: #10b981;
+  --radius-standard: 0.75rem; /* New Rounded Corner Variable */
+}
+
+body {
+  background-color: var(--bg-main);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1e293b;
+}
+
+/* TOP COMMAND BAR */
+.command-bar {
+  background: white;
+  border-bottom: 1px solid var(--border-color);
+  padding: 2.5rem 2rem; /* Increased padding for more presence */
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
+/* ARCHITECTURAL CARDS */
+.exec-card {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-standard); /* Added Rounded Corners */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  transition: all 0.2s ease;
+  overflow: hidden; /* Ensures content doesn't bleed past rounded corners */
+}
+
+.exec-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+}
+
+/* TYPOGRAPHY */
+.heading-exec {
+  font-size: 3.5rem; /* Made Very Big */
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #000;
+}
+
+.label-mono {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #64748b;
+}
+
+/* ACTION COMPONENTS */
+.btn-exec {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-standard); /* Added Rounded Corners */
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary { 
+  background: var(--accent-navy); 
+  color: white; 
+  border: none; 
+}
+.btn-primary:hover { 
+  background: #0f172a; 
+  transform: translateY(-1px);
+}
+
+.btn-outline { 
+  border: 1px solid var(--border-color); 
+  background: transparent; 
+  color: var(--accent-navy); 
+}
+.btn-outline:hover { 
+  background: #f1f5f9; 
+  border-color: var(--accent-navy);
+}
+
+/* DATA ROWS */
+.data-row:hover {
+  background: #f8fafc;
+  border-left-color: var(--accent-navy);
+}
+
+.progress-track {
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.progress-bar {
+  background: var(--accent-navy);
+  border-radius: 10px;
+}
+
+/* MODAL ROUNDING */
+.modal-content-wrapper {
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+input, textarea, select {
+  border-radius: 0.5rem !important;
+}
+
+/* UTILITY OVERRIDE */
+.bg-indigo-600 { background-color: var(--accent-navy) !important; }
+.text-indigo-600 { color: var(--accent-navy) !important; }
+.border-indigo-500 { border-color: var(--accent-navy) !important; }
+.bg-indigo-100 { background-color: #f1f5f9 !important; color: var(--accent-navy) !important; }
+
+/* Safety net for dynamic pages */
+.glass,
+.task-card,
+canvas {
+  opacity: 1 !important;
+  transform: none !important;
+  visibility: visible !important;
+}
+
+</style>
+
+<div class="command-bar flex flex-col lg:flex-row justify-between items-end gap-6">
+    <div>
+        <div class="flex items-center gap-3 mb-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="label-mono">System Live / Node 01</span>
+        </div>
+        <h1 class="heading-exec">Operations Console</h1>
+    </div>
+
+    <div class="flex items-center gap-4 flex-wrap mb-2">
+        <div class="flex items-center gap-3 px-4 py-2 border border-slate-200 rounded-xl bg-white">
+            {% if user.photo_blob %}
+              <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="w-10 h-10 rounded-xl object-cover border border-slate-200" />
+            {% elif user.photo_path %}
+              <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="w-10 h-10 rounded-xl object-cover border border-slate-200" />
+            {% else %}
+              <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-black">
+                {{ user.name[0]|upper }}
+              </div>
+            {% endif %}
+            <div>
+              <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Manager</div>
+              <div class="text-sm font-bold text-slate-900">{{ user.name }}</div>
+            </div>
+        </div>
+        <button onclick="openModal('createProjectModal')" class="btn-exec btn-outline">
+            + New Project
+        </button>
+        <button onclick="openNewMeetingModal()" class="btn-exec btn-outline">
+            + Schedule Meeting
+        </button>
+        <button onclick="openModal('createTaskModal')" class="btn-exec btn-primary">
+            Assign Task
+        </button>
+    </div>
+</div>
+
+<div class="max-w-[1600px] mx-auto p-8 space-y-8">
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-in">
+        <div class="exec-card p-6 border-b-4 border-b-indigo-500">
+            <p class="label-mono">Pending Approvals</p>
+            <h3 class="text-3xl font-black mt-2">{{ leave_requests|selectattr("status","equalto","Pending")|list|length }}</h3>
+        </div>
+        <div class="exec-card p-6">
+            <p class="label-mono">Active Portfolio</p>
+            <h3 class="text-3xl font-black mt-2">{{ projects|length }}</h3>
+        </div>
+        <div class="exec-card p-6">
+            <p class="label-mono">Teams Engaged</p>
+            <h3 class="text-3xl font-black mt-2">{{ teams|length }}</h3>
+        </div>
+        <!-- <div class="exec-card p-6 bg-slate-900 text-white">
+            <p class="label-mono text-slate-400">Operational Efficiency</p>
+            <h3 class="text-3xl font-black mt-2">94.2%</h3>
+        </div> -->
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <div class="lg:col-span-4 space-y-6 reveal-in" style="animation-delay: 0.1s">
+            <div class="exec-card flex flex-col h-full">
+                <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                    <span class="label-mono text-slate-900">Review Queue</span>
+                    <span class="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 font-bold uppercase">Priority</span>
+                </div>
+                <div class="divide-y max-h-[600px] overflow-y-auto">
+                    {% for req in leave_requests if req.status == 'Pending' %}
+                    <div class="p-5 data-row">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-bold text-sm text-slate-900">{{ req.user.name }}</span>
+                            <span class="font-mono text-[10px] text-slate-400">{{ req.start_date }}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-4 bg-slate-50 p-2 border-l border-slate-200 italic leading-relaxed">"{{ req.reason }}"</p>
+                        <form action="/manager/approve_leave" method="POST" class="flex gap-2 justify-end">
+                            <input type="hidden" name="leave_id" value="{{ req.id }}">
+                            <button name="action" value="approve" class="px-3 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold uppercase border border-emerald-200 hover:bg-emerald-500 hover:text-white transition-all">Approve</button>
+                            <button name="action" value="reject" class="px-3 py-1 bg-red-50 text-red-700 text-[10px] font-bold uppercase border border-red-200 hover:bg-red-500 hover:text-white transition-all">Decline</button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="p-12 text-center label-mono opacity-30">No Action Items</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-8 space-y-8 reveal-in" style="animation-delay: 0.2s">
+            
+            <div class="exec-card">
+                <div class="p-4 bg-slate-50 border-b">
+                    <span class="label-mono text-slate-900">Upcoming Agenda</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/50 border-b border-slate-100">
+                                <th class="p-4 label-mono">Time</th>
+                                <th class="p-4 label-mono">Session</th>
+                                <th class="p-4 label-mono">Project Context</th>
+                                <th class="p-4"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for m in meetings %}
+                            <tr class="hover:bg-slate-50/50 transition">
+                                <td class="p-4 text-xs font-mono text-indigo-600 font-bold">{{ m.meeting_datetime }}</td>
+                                <td class="p-4">
+                                    <div class="text-sm font-bold text-slate-900">{{ m.title }}</div>
+                                    <div class="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{{ m.assignees|length }} Participants</div>
+                                </td>
+                                <td class="p-4">
+                                    <span class="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold uppercase tracking-tight">
+                                        {{ m.project.name if m.project else 'General Operations' }}
+                                    </span>
+                                </td>
+                                <td class="p-4 text-right">
+                                    <button class="view-attendees-btn text-[10px] font-black uppercase text-indigo-600 hover:underline"
+                                            data-attendees="{% for a in m.assignees %}{{ a.employee.name if a.employee else a.employee_id }}{% if not loop.last %}, {% endif %}{% endfor %}">
+                                        View Log
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="p-12 text-center label-mono opacity-30 italic text-slate-400 uppercase tracking-widest">No sessions scheduled</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="exec-card p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="label-mono">Portfolio Progress</span>
+                        <a href="/manager/projects" class="text-[10px] font-bold text-indigo-600 hover:underline uppercase">Audit All</a>
+                    </div>
+                    <div class="space-y-6">
+                        {% for project in projects %}
+                        {% set completed = project.tasks|selectattr("status","equalto","completed")|list|length %}
+                        {% set total = project.tasks|length %}
+                        {% set percent = (completed / total * 100)|int if total > 0 else 0 %}
+                        <div>
+                            <div class="flex justify-between text-[11px] mb-2 font-bold uppercase tracking-tight">
+                                <span class="text-slate-700">{{ project.name }}</span>
+                                <span class="text-slate-400">{{ percent }}%</span>
+                            </div>
+                            <div class="progress-track w-full">
+                              <div class="progress-bar h-full transition-all duration-1000" data-progress="{{ percent }}"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="exec-card flex flex-col">
+                    <div class="p-4 border-b bg-slate-50">
+                        <span class="label-mono">Team Allocation</span>
+                    </div>
+                    <div class="flex-1 divide-y divide-slate-100 overflow-y-auto max-h-[300px]">
+                        {% for item in team_data %}
+                        {% set team = item.team %}
+                        <div class="p-4 flex items-center justify-between hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs">
+                                    {{ team.name[0] }}
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-800">{{ team.name }}</div>
+                                    <div class="text-[9px] text-slate-400 uppercase font-black">Team Lead: {{ team.leader.name if team.leader else "Not Assigned" }}</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded">{{ item.pending_tasks }} Pending</span>
+                                <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[8px] font-black uppercase tracking-wider">Active</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-sm p-4 border-t border-slate-100">
+                          <p class="font-bold text-slate-700">Assigned Staff ({{ item.member_count }})</p>
+
+                          <ul class="mt-2 space-y-1">
+                            {% for member in item.members %}
+                              <li class="text-slate-600">
+                                • {{ member.name }} ({{ member.employee_id }})
+                                <span class="text-xs text-slate-400">
+                                  — {{ member.task_count }} active tasks
+                                </span>
+                              </li>
+                            {% else %}
+                              <li class="italic text-slate-400">No staff assigned</li>
+                            {% endfor %}
+                          </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="attendeesListModal" class="hidden fixed inset-0 z-[100] items-center justify-center modal-backdrop">
+  <div class="bg-white rounded-none shadow-2xl w-full max-w-lg mx-4 overflow-hidden border border-slate-200">
+    <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <h4 class="label-mono text-slate-800">Session Attendees</h4>
+      <button onclick="closeModal('attendeesListModal')" class="text-slate-400 hover:text-slate-900">✕</button>
+    </div>
+    <div class="p-6">
+      <ul id="attendeesListItems" class="space-y-3 text-sm text-slate-700 max-h-64 overflow-y-auto"></ul>
+    </div>
+  </div>
+</div>
+
+<div id="createProjectModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-backdrop">
+  <div class="bg-white w-full max-w-lg p-8 mx-4 border border-slate-200 shadow-2xl">
+    <h3 class="heading-exec text-xl mb-6">Initiate Project</h3>
+    <form action="/manager/create_project" method="POST" class="space-y-5">
+      <div class="space-y-1">
+          <label class="label-mono">Project Nomenclature</label>
+          <input type="text" name="name" required class="w-full px-4 py-3 border border-slate-200 focus:border-indigo-500 outline-none text-sm">
+      </div>
+      <div class="space-y-1">
+          <label class="label-mono">Operational Scope</label>
+          <textarea name="description" rows="3" class="w-full px-4 py-3 border border-slate-200 focus:border-indigo-500 outline-none text-sm resize-none"></textarea>
+      </div>
+      <div class="space-y-1">
+          <label class="label-mono">Target Deadline</label>
+          <input type="date" name="deadline" required class="w-full px-4 py-3 border border-slate-200 focus:border-indigo-500 outline-none text-sm">
+      </div>
+      <div class="flex justify-end gap-4 pt-4">
+        <button type="button" onclick="closeModal('createProjectModal')" class="label-mono hover:text-red-600 transition">Discard</button>
+        <button type="submit" class="btn-exec btn-primary">Establish Project</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="createMeetingModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-backdrop">
+  <div class="w-full max-w-2xl mx-4 max-h-[90vh] flex flex-col bg-white border border-slate-900 shadow-2xl overflow-hidden">
+    <div class="bg-slate-900 px-7 py-6 flex justify-between items-center">
+        <h3 class="text-xl font-bold text-white uppercase tracking-tighter italic">Schedule Session</h3>
+        <button onclick="closeModal('createMeetingModal')" class="text-white hover:text-blue-400 transition">✕</button>
+    </div>
+    <div class="overflow-y-auto flex-1 px-8 py-8">
+      <form action="/manager/create_meeting" method="POST" id="meetingForm" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-1 md:col-span-2">
+                <label class="label-mono">Session Title</label>
+                <input type="text" name="title" required class="w-full px-4 py-3 border border-slate-200 focus:border-indigo-500 outline-none text-sm">
+            </div>
+            <div class="space-y-1 md:col-span-2">
+                <label class="label-mono">Agenda Outline</label>
+                <textarea name="description" rows="2" class="w-full px-4 py-3 border border-slate-200 focus:border-indigo-500 outline-none text-sm resize-none"></textarea>
+            </div>
+            <div class="space-y-1">
+                <label class="label-mono">Timestamp</label>
+                <input type="datetime-local" name="meeting_datetime" required class="w-full px-4 py-3 border border-slate-200 outline-none text-sm">
+            </div>
+            <div class="space-y-1">
+                <label class="label-mono">Project Context</label>
+                <select name="project_id" class="w-full px-4 py-3 border border-slate-200 outline-none text-sm bg-white">
+                  <option value="">-- General --</option>
+                  {% for p in projects %}
+                  <option value="{{ p.id }}">{{ p.name }}</option>
+                  {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-slate-100">
+          <label class="label-mono block mb-4">Participant Selection</label>
+          <div class="relative mb-4">
+            <input id="meetingAssigneeSearch" type="text" placeholder="FILTER BY NAME/ID..." class="w-full pl-4 pr-4 py-3 border border-slate-200 text-xs font-bold outline-none focus:border-indigo-500" />
+          </div>
+          <div id="meetingAssigneeIdle" class="py-4 text-center text-[10px] text-slate-400 font-bold tracking-widest uppercase">Start typing to filter directory</div>
+          <div id="meetingAssigneeCards" class="hidden space-y-2 max-h-[200px] overflow-y-auto p-2 bg-slate-50 border border-slate-200">
+            {% for emp in employees %}
+            <div class="meeting-assignee-card cursor-pointer p-3 bg-white border border-slate-100 hover:border-indigo-500 transition-all flex items-center justify-between" data-emp-id="{{ emp.employee_id }}" data-emp-name="{{ emp.name }}">
+              <div class="text-xs font-bold text-slate-800">{{ emp.name }} <span class="text-slate-400 ml-2">#{{ emp.employee_id }}</span></div>
+              <div class="assignee-check hidden text-indigo-600 font-bold">✓</div>
+            </div>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="meetingAssignees" name="assignees" value="">
+        </div>
+
+        <div class="pt-6 border-t border-slate-100">
+          <label class="label-mono block mb-3">Meeting Asset (Auto-Generated)</label>
+          <div class="p-4 bg-slate-50 border border-slate-200 flex items-center gap-4">
+            <input type="text" id="generatedMeetingLink" readonly value="https://meet.jit.si/..." class="flex-1 bg-transparent text-xs font-mono text-slate-600 focus:outline-none">
+            <button type="button" onclick="copyGeneratedMeetingLink(event)" class="btn-exec btn-outline py-2 text-[9px]">Copy Link</button>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="bg-slate-50 px-8 py-4 flex justify-end gap-3 border-t border-slate-200">
+      <button onclick="closeModal('createMeetingModal')" class="label-mono px-4 py-2 hover:text-red-600">Cancel</button>
+      <button type="submit" form="meetingForm" class="btn-exec btn-primary">Commit Schedule</button>
+    </div>
+  </div>
+</div>
+
+<div id="createTaskModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-backdrop">
+  <div class="w-full max-w-2xl mx-4 bg-white border border-slate-200 shadow-2xl">
+    <div class="bg-indigo-600 px-7 py-5 flex justify-between items-center text-white">
+        <h3 class="text-sm font-bold uppercase tracking-widest">Assign Operational Task</h3>
+        <button onclick="closeModal('createTaskModal')" class="hover:opacity-70 transition">✕</button>
+    </div>
+    <div class="p-8">
+      <form action="/manager/create_task" method="POST" id="taskForm" class="space-y-6">
+        <div class="space-y-1">
+          <label class="label-mono">Task Objective</label>
+          <input type="text" name="title" required class="w-full px-4 py-3 border border-slate-200 outline-none text-sm">
+        </div>
+        <div class="grid grid-cols-2 gap-6">
+          <div class="space-y-1">
+            <label class="label-mono">Priority Level</label>
+            <select name="priority" class="w-full px-4 py-3 border border-slate-200 outline-none text-sm bg-white">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="space-y-1">
+            <label class="label-mono">Due Date</label>
+            <input type="date" name="due_date" required class="w-full px-4 py-3 border border-slate-200 outline-none text-sm">
+          </div>
+        </div>
+        <div class="space-y-1">
+          <label class="label-mono">Project Linkage</label>
+          <select name="project_id" class="w-full px-4 py-3 border border-slate-200 outline-none text-sm bg-white">
+            <option value="">-- No Project --</option>
+            {% for p in projects %}
+            <option value="{{ p.id }}">{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="space-y-1">
+          <label class="label-mono text-indigo-600">Assign To Personnel</label>
+          <input id="taskAssigneeSearch" type="text" placeholder="FILTER PERSONNEL..." class="w-full px-4 py-3 border border-slate-200 text-xs font-bold outline-none mb-3" />
+          <div id="taskAssigneeCards" class="hidden space-y-2 max-h-[150px] overflow-y-auto p-2 bg-slate-50 border border-slate-100">
+            {% for emp in employees %}
+            <div class="task-assignee-card cursor-pointer p-2 bg-white border border-slate-200 hover:border-indigo-400 flex items-center justify-between" data-emp-id="{{ emp.employee_id }}" data-emp-name="{{ emp.name }}">
+              <div class="text-[11px] font-bold">{{ emp.name }}</div>
+              <div class="assignee-check hidden text-indigo-500">✓</div>
+            </div>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="taskAssignees" name="assignees" value="">
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
+          <button type="button" onclick="closeModal('createTaskModal')" class="label-mono hover:text-red-500">Discard</button>
+          <button type="submit" class="btn-exec btn-primary">Authorize Assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// UTILITY FUNCTIONS
+function openModal(id) {
+    document.getElementById(id).classList.remove('hidden');
+    document.getElementById(id).classList.add('flex');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.add('hidden');
+    document.getElementById(id).classList.remove('flex');
+}
+
+function openNewMeetingModal() {
+    const linkInput = document.getElementById('generatedMeetingLink');
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 7);
+    linkInput.value = `https://meet.jit.si/teamsync_${timestamp}_${random}`;
+    openModal('createMeetingModal');
+}
+
+function copyGeneratedMeetingLink(e) {
+    e.preventDefault();
+    const linkInput = document.getElementById('generatedMeetingLink');
+    if (linkInput && linkInput.value) {
+        linkInput.select();
+        document.execCommand('copy');
+        const btn = e.target;
+        const orig = btn.innerText;
+        btn.innerText = 'COPIED';
+        setTimeout(() => { btn.innerText = orig; }, 2000);
+    }
+}
+
+// CONSOLIDATED GLOBAL SCRIPT
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Real-time Executive Clock initialization
+    function updateClock() {
+        const clockElement = document.getElementById('clock');
+        if (clockElement) {
+            const now = new Date();
+            clockElement.textContent = now.toLocaleTimeString('en-GB');
+        }
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // 2. Initialize Attendees logic
+    (function () {
+        const listEl = document.getElementById('attendeesListItems');
+        const buttons = document.querySelectorAll('.view-attendees-btn');
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (listEl) {
+                    listEl.innerHTML = '';
+                    const names = btn.dataset.attendees ? btn.dataset.attendees.split(',').map(n => n.trim()) : [];
+                    if (names.length === 0) {
+                        listEl.innerHTML = '<li class="text-slate-400 italic">No participants found.</li>';
+                    } else {
+                        names.forEach(name => {
+                            const li = document.createElement('li');
+                            li.className = 'p-3 bg-slate-50 border border-slate-100 font-bold text-xs uppercase tracking-tight';
+                            li.textContent = name;
+                            listEl.appendChild(li);
+                        });
+                    }
+                    openModal('attendeesListModal');
+                }
+            });
+        });
+    })();
+
+    // 3. Robust Multi-Select logic
+    function setupMultiSelect(searchId, containerId, hiddenInputId, cardClass) {
+        const search = document.getElementById(searchId);
+        const container = document.getElementById(containerId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        
+        if (!search || !container || !hiddenInput) return;
+
+        const cards = Array.from(container.querySelectorAll('.' + cardClass));
+        const selectedIds = new Set();
+
+        search.addEventListener('input', () => {
+            const q = search.value.toLowerCase().trim();
+            if (q === '') {
+                container.classList.add('hidden');
+                return;
+            }
+            container.classList.remove('hidden');
+            cards.forEach(card => {
+                const txt = (card.dataset.empName || '') + (card.dataset.empId || '');
+                card.style.display = txt.toLowerCase().includes(q) ? 'flex' : 'none';
+            });
+        });
+
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.empId;
+                const check = card.querySelector('.assignee-check');
+                if (selectedIds.has(id)) {
+                    selectedIds.delete(id);
+                    card.classList.remove('border-indigo-500', 'bg-indigo-50');
+                    if (check) check.classList.add('hidden');
+                } else {
+                    selectedIds.add(id);
+                    card.classList.add('border-indigo-500', 'bg-indigo-50');
+                    if (check) check.classList.remove('hidden');
+                }
+                hiddenInput.value = Array.from(selectedIds).join(',');
+            });
+        });
+    }
+
+    try {
+        setupMultiSelect('meetingAssigneeSearch', 'meetingAssigneeCards', 'meetingAssignees', 'meeting-assignee-card');
+        setupMultiSelect('taskAssigneeSearch', 'taskAssigneeCards', 'taskAssignees', 'task-assignee-card');
+    } catch (e) {
+        console.warn("Assignee search initialization failed.");
+    }
+
+    // 4. Global Date Constraints
+    const now = new Date();
+    const iso = now.toISOString().split('T')[0];
+    document.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(i => {
+        i.min = i.type === 'date' ? iso : iso + 'T00:00';
+    });
+
+    // 5. Initialize Progress Bars
+    document.querySelectorAll('[data-progress]').forEach(el => {
+        const val = Number(el.getAttribute('data-progress')) || 0;
+        el.style.width = `${Math.min(Math.max(val, 0), 100)}%`;
+    });
+});
+</script>
+{% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const bars = document.querySelectorAll('[data-progress]');
+  if (!bars.length) return;
+
+  bars.forEach(el => {
+    const val = Number(el.dataset.progress || 0);
+    el.style.width = `${Math.min(Math.max(val, 0), 100)}%`;
+  });
+});
+</script>

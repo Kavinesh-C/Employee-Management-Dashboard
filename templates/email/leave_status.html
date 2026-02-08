@@ -1,0 +1,37 @@
+{% extends "email/_base.html" %}
+{% block content %}
+<h1 style="margin:0 0 12px;color:#0f172a;font-size:24px;">Leave Request Update</h1>
+<p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+  Hi {{ employee_name }},
+  {% if status|lower == "requested" %}
+    your leave request has been submitted. Below are the details.
+  {% elif status|lower == "approved" %}
+    your leave request has been approved. Below are the details.
+  {% else %}
+    your leave request has been <strong>{{ status }}</strong>. Below are the details.
+  {% endif %}
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;background:#f8fafc;border-radius:12px;padding:16px;">
+  <tr>
+    <td style="color:#0f172a;font-size:13px;font-weight:700;padding-bottom:6px;">From</td>
+  </tr>
+  <tr>
+    <td style="color:#1e293b;font-size:14px;padding-bottom:12px;">{{ start_date }}</td>
+  </tr>
+  <tr>
+    <td style="color:#0f172a;font-size:13px;font-weight:700;padding-bottom:6px;">To</td>
+  </tr>
+  <tr>
+    <td style="color:#1e293b;font-size:14px;padding-bottom:12px;">{{ end_date }}</td>
+  </tr>
+  <tr>
+    <td style="color:#0f172a;font-size:13px;font-weight:700;padding-bottom:6px;">Reason</td>
+  </tr>
+  <tr>
+    <td style="color:#1e293b;font-size:14px;">{{ reason }}</td>
+  </tr>
+</table>
+<p style="margin:16px 0 0;color:#475569;font-size:14px;line-height:1.6;">
+  If you have questions, please contact HR.
+</p>
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Employee Profile | TeamSync{% endblock %}
+
+{% block page_title %}EMPLOYEE_QR{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto p-4">
+  {% if error %}
+    <div class="border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">{{ error }}</div>
+  {% else %}
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <img src="/static/assets/logo.png" alt="Company Logo" class="w-10 h-10 object-contain" />
+        <div>
+          <div class="text-xs font-black uppercase tracking-widest text-slate-400">Company</div>
+          <div class="text-lg font-black text-slate-900">TeamSync</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee Profile</div>
+        <button type="button" id="openQrModal" class="w-10 h-10 border border-slate-200 bg-white hover:bg-slate-50 transition">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data={{ request.base_url }}public/employee/{{ employee.employee_id }}" alt="QR" class="w-full h-full" />
+        </button>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-4">
+        <div class="border border-[var(--border)] bg-white p-6 rounded-2xl shadow-sm">
+          <div class="flex items-center gap-4">
+            {% if employee.photo_blob %}
+              <img src="/employee/photo/{{ employee.employee_id }}" alt="{{ employee.name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+            {% elif employee.photo_path %}
+              <img src="{{ employee.photo_path }}" alt="{{ employee.name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+            {% else %}
+              <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl font-black text-slate-700">
+                {{ employee.name[0]|upper }}
+              </div>
+            {% endif %}
+            <div>
+              <div class="text-lg font-black text-slate-900">{{ employee.name }}</div>
+              <div class="text-[11px] font-black uppercase tracking-widest text-slate-400">{{ employee.role|default('Employee') }}</div>
+              <div class="text-[10px] text-slate-400 mt-1">ID - {{ employee.employee_id }}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 mt-6 text-[12px] text-slate-600">
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Email</div>
+              <div>{{ employee.email }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">RFID Tag</div>
+              <div>{{ employee.rfid_tag or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Department</div>
+              <div>{{ employee.department or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Date of Birth</div>
+              <div>{{ employee.date_of_birth.strftime('%d-%m-%Y') if employee.date_of_birth else '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Active</div>
+              <div>{{ 'Yes' if employee.is_active else 'No' }}</div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Notes</div>
+            <div class="mt-2 p-3 border border-slate-200 bg-slate-50 text-[12px] text-slate-500">
+              {{ employee.notes or 'No notes added.' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-8 space-y-6">
+        <div class="border border-[var(--border)] bg-white p-6 rounded-2xl shadow-sm">
+          <div class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Employee Overview</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div class="border border-slate-200 p-4 rounded-xl">
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Total Time Worked</div>
+              <div class="text-2xl font-black text-slate-900 mt-2">{{ '%.0f'|format(total_hours or 0) }}h</div>
+              <div class="text-[11px] text-slate-500 mt-1">Attendance based</div>
+            </div>
+            <div class="border border-slate-200 p-4 rounded-xl">
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Team</div>
+              <div class="text-xl font-black text-slate-900 mt-2">{{ employee.team.name if employee.team else '-' }}</div>
+              <div class="text-[11px] text-slate-500 mt-1">Team ID: {{ employee.current_team_id or '-' }}</div>
+            </div>
+            <div class="border border-slate-200 p-4 rounded-xl">
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Role</div>
+              <div class="text-xl font-black text-slate-900 mt-2">{{ employee.role or '-' }}</div>
+              <div class="text-[11px] text-slate-500 mt-1">Status: {{ 'Active' if employee.is_active else 'Inactive' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-[var(--border)] bg-white p-6 rounded-2xl shadow-sm">
+          <div class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Contact</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-[12px] text-slate-600">
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Email</div>
+              <div>{{ employee.email }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Phone</div>
+              <div>-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div id="qrModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 z-50">
+  <div class="bg-white rounded-2xl w-[92%] max-w-md shadow-2xl border border-slate-200">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee QR</div>
+        <div class="text-lg font-black text-slate-900">{{ employee.name }}</div>
+      </div>
+      <button type="button" id="closeQrModal" class="w-9 h-9 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="p-6 flex flex-col items-center gap-4">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ request.base_url }}public/employee/{{ employee.employee_id }}" alt="QR" class="w-60 h-60 border border-slate-200" />
+      <div class="text-xs text-slate-500">Scan to open the public profile.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const openQrModal = document.getElementById('openQrModal');
+  const qrModal = document.getElementById('qrModal');
+  const closeQrModal = document.getElementById('closeQrModal');
+
+  function hideQrModal() {
+    if (!qrModal) {
+      return;
+    }
+    qrModal.classList.add('hidden');
+    qrModal.classList.remove('flex');
+  }
+
+  if (openQrModal && qrModal) {
+    openQrModal.addEventListener('click', () => {
+      qrModal.classList.remove('hidden');
+      qrModal.classList.add('flex');
+    });
+  }
+
+  if (closeQrModal) {
+    closeQrModal.addEventListener('click', hideQrModal);
+  }
+
+  if (qrModal) {
+    qrModal.addEventListener('click', (event) => {
+      if (event.target === qrModal) {
+        hideQrModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      hideQrModal();
+    }
+  });
+</script>
+{% endblock %}

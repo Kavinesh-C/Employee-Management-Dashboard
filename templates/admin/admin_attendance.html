@@ -1,0 +1,171 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Attendance Overview | TeamSync{% endblock %}
+
+{% block page_title %}ATTENDANCE_REPORT{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Currently Present</p>
+      <div class="flex items-end gap-2">
+        <p class="text-4xl font-black tracking-tighter text-blue-600">{{ present_count }}</p>
+        <p class="text-xs font-bold text-slate-400 pb-1">Personnel</p>
+      </div>
+    </div>
+
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Currently Absent</p>
+      <div class="flex items-end gap-2">
+        <p class="text-4xl font-black tracking-tighter text-red-500">{{ absent_count }}</p>
+        <p class="text-xs font-bold text-slate-400 pb-1">Personnel</p>
+      </div>
+    </div>
+
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Unrecognized Entry</p>
+      <div class="flex items-end gap-2">
+        <p class="text-4xl font-black tracking-tighter text-orange-400">{{ unknown_rfids|length }}</p>
+        <p class="text-xs font-bold text-slate-400 pb-1">Events</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <div class="lg:col-span-1 border border-[var(--border)] bg-[var(--panel)] p-8">
+      <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+            <div class="h-5 w-1 bg-red-500"></div>
+            <h3 class="text-xs font-black uppercase tracking-[0.2em]">Absentee List</h3>
+        </div>
+        <select id="departmentSelect" class="bg-[var(--bg)] border border-[var(--border)] text-[10px] font-bold uppercase px-2 py-1 outline-none focus:border-blue-600">
+          <option value="IT">IT Dept</option>
+          <option value="HR">HR Dept</option>
+          <option value="Finance">Finance</option>
+        </select>
+      </div>
+
+      <div class="max-h-[500px] overflow-y-auto pr-2">
+        <ul id="absenteeList" class="space-y-3">
+            </ul>
+      </div>
+    </div>
+
+    <div class="lg:col-span-2 border border-[var(--border)] bg-[var(--panel)] p-8">
+      <div class="flex items-center gap-3 mb-8">
+          <div class="h-5 w-1 bg-blue-600"></div>
+          <h3 class="text-xs font-black uppercase tracking-[0.2em]">Live Presence Log</h3>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-[var(--border)] text-[10px] font-black uppercase tracking-widest text-slate-400">
+              <th class="pb-4">Name</th>
+              <th class="pb-4 text-center">Dept</th>
+              <th class="pb-4 text-center">Room</th>
+              <th class="pb-4 text-center">Checked In</th>
+              <th class="pb-4 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[var(--border)]">
+            {% for e in present %}
+            <tr class="hover:bg-slate-50 transition-colors group">
+              <td class="py-4">
+                <p class="font-bold text-sm">{{ e.name }}</p>
+                <p class="executive-mono text-[9px] text-slate-400 uppercase">UID: {{ e.employee_id }}</p>
+              </td>
+              <td class="py-4 text-center executive-mono text-xs">{{ e.department }}</td>
+              <td class="py-4 text-center">
+                <span class="px-2 py-1 bg-slate-100 text-[10px] font-bold text-slate-600 border border-slate-200">
+                    RM_{{ e.room_no }}
+                </span>
+              </td>
+              <td class="py-4 text-center executive-mono text-xs font-bold">{{ e.entry_time.strftime("%H:%M") }}</td>
+              <td class="py-4 text-right">
+                <button class="px-3 py-1 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all"
+                        onclick="showLogs('{{e.employee_id}}','{{e.name}}')">
+                  History
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="logsModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-[200] backdrop-blur-sm">
+  <div class="bg-[var(--panel)] border border-[var(--border)] p-10 w-full max-w-md relative">
+    <div class="h-1 w-full bg-blue-600 absolute top-0 left-0"></div>
+    <h3 id="modalTitle" class="text-xs font-black uppercase tracking-widest mb-6 text-blue-600"></h3>
+    <ul id="modalBody" class="space-y-3 mb-8">
+        </ul>
+    <button onclick="closeModal()" class="w-full py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all">
+      Close Window
+    </button>
+  </div>
+</div>
+
+<script>
+// Absentee fetch logic
+function loadAbsentees(){
+  let dept = document.getElementById("departmentSelect").value;
+  fetch(`/api/absentees?department=${dept}`)
+  .then(r=>r.json())
+  .then(data=>{
+    let ul = document.getElementById("absenteeList");
+    ul.innerHTML = "";
+    if(data.absentees.length === 0){
+      ul.innerHTML = "<div class='py-4 text-center border border-dashed border-slate-200 executive-mono text-slate-400 text-[10px] uppercase'>No absentees reported</div>";
+    } else {
+      data.absentees.forEach(a=>{
+        ul.innerHTML += `
+            <li class="flex items-center justify-between p-3 border border-[var(--border)] bg-[var(--bg)]">
+                <div>
+                    <p class="text-xs font-bold uppercase">${a.name}</p>
+                    <p class="executive-mono text-[9px] text-slate-500 uppercase">ID: ${a.employee_id}</p>
+                </div>
+                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+            </li>`;
+      });
+    }
+  });
+}
+document.getElementById("departmentSelect").addEventListener("change", loadAbsentees);
+loadAbsentees();
+
+// Logs modal logic
+function showLogs(id, name){
+  document.getElementById("modalTitle").innerText = `${name} // DAILY_LOGS`;
+
+  fetch(`/api/employee_logs?employee_id=${id}`)
+  .then(r=>r.json())
+  .then(data=>{
+    let body = document.getElementById("modalBody");
+    body.innerHTML = "";
+    if(data.logs.length === 0){
+      body.innerHTML = "<li class='executive-mono text-slate-400 text-center uppercase py-4'>No log history found</li>";
+    } else {
+      data.logs.forEach(l=>{
+        body.innerHTML += `
+            <li class="p-3 border border-[var(--border)] flex justify-between items-center group hover:border-blue-500 transition-colors">
+                <span class="executive-mono text-xs font-bold text-blue-600">${l.in} — ${l.out}</span>
+                <span class="executive-mono text-[10px] text-slate-500 uppercase font-bold">ROOM ${l.room}</span>
+            </li>`;
+      });
+    }
+    document.getElementById("logsModal").classList.replace("hidden","flex");
+  });
+}
+function closeModal(){
+  document.getElementById("logsModal").classList.replace("flex","hidden");
+}
+</script>
+
+{% endblock %}

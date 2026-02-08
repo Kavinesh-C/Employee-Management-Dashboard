@@ -1,0 +1,278 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Register Employee | TeamSync{% endblock %}
+
+{% block page_title %}NEW_EMPLOYEE{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="flex items-center justify-between">
+    <a href="/admin/manage_employees" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition">
+      <i class="bi bi-arrow-left"></i>
+      Back to Manage
+    </a>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <div>
+        <div class="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600">New Employee</div>
+        <h2 class="text-2xl font-black tracking-tight text-slate-900">Register Employee</h2>
+        <p class="text-sm text-slate-500 mt-2">Create a new employee record with identity, payroll, and team placement.</p>
+      </div>
+    </div>
+
+    <div class="bg-slate-50 border border-slate-200 p-4 text-[11px] text-slate-500 font-semibold">
+      <ul class="space-y-1">
+        <li>• Employee ID is auto-generated.</li>
+        <li>• Password will be auto-created.</li>
+        <li>• Photo is optional but recommended.</li>
+      </ul>
+    </div>
+
+    <form id="registerEmployeeForm" method="post" action="/admin/add_employee" enctype="multipart/form-data" class="mt-8 space-y-8">
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Identity</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input name="name" required class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Full Name" />
+          <input name="email" type="email" required class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Email" />
+          <input name="phone" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Mobile Number" />
+          <input name="rfid_tag" required class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="RFID Tag" />
+          <input name="title" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Title" />
+          <input name="date_of_birth" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Date of Birth (dd-mm-yyyy)" />
+          <div class="w-full">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">Photo</label>
+            <input name="photo" type="file" class="w-full border border-[var(--border)] p-2 text-sm bg-[var(--bg)]" />
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Role & Department</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <select name="role" class="border border-[var(--border)] p-3 text-xs font-black uppercase bg-[var(--bg)] outline-none focus:border-blue-600">
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
+          <select name="department" class="border border-[var(--border)] p-3 text-xs font-black uppercase bg-[var(--bg)] outline-none focus:border-blue-600">
+            {% if departments and departments|length > 0 %}
+              {% for dept in departments %}
+                <option value="{{ dept.name }}">{{ dept.name }}</option>
+              {% endfor %}
+            {% else %}
+              <option>IT</option>
+              <option>HR</option>
+              <option>Finance</option>
+            {% endif %}
+          </select>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Compensation</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <input name="hourly_rate" type="number" step="0.01" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Hourly Rate" />
+          <input name="allowances" type="number" step="0.01" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Allowances" />
+          <input name="deductions" type="number" step="0.01" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Deductions" />
+        </div>
+        <textarea name="notes" rows="3" class="w-full border border-[var(--border)] p-3 text-sm font-bold bg-[var(--bg)] outline-none focus:border-blue-600" placeholder="Add notes"></textarea>
+      </div>
+
+      <div class="space-y-4">
+        <h3 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Team & Status</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <select name="team_id" class="border border-[var(--border)] p-3 text-xs font-black uppercase bg-[var(--bg)] outline-none focus:border-blue-600">
+            <option value="">No Team</option>
+            {% for team in teams %}
+              <option value="{{ team.id }}">{{ team.name }}</option>
+            {% endfor %}
+          </select>
+          <div class="flex items-center gap-6 text-[11px] font-bold text-slate-600">
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name="is_active" checked />
+              Active
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name="can_manage" />
+              Can Manage
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name="active_leader" />
+              Active Leader
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 pt-4">
+        <a href="/admin/manage_employees" class="flex-1 py-4 text-center bg-slate-100 text-slate-600 font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all">
+          Cancel
+        </a>
+        <button class="flex-1 py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all" type="submit">
+          Create Employee
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="credentialsModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 z-50">
+  <div class="bg-white rounded-2xl w-[92%] max-w-lg shadow-2xl border border-slate-200">
+    <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Credentials</div>
+        <div class="text-xl font-black text-slate-900">Employee Login Details</div>
+      </div>
+      <button type="button" id="closeCredentialsModal" class="w-9 h-9 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+        Save these details before leaving this page. Passwords are auto-generated.
+      </div>
+      <div id="emailStatusNote" class="rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 hidden"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div class="rounded-xl border border-slate-200 p-4">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Username</div>
+          <div id="credUsername" class="text-slate-900 font-bold mt-1"></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 p-4">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee ID</div>
+          <div id="credEmployeeId" class="text-slate-900 font-bold mt-1"></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 p-4">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Mobile Number</div>
+          <div id="credPhone" class="text-slate-900 font-bold mt-1"></div>
+        </div>
+        <div class="rounded-xl border border-slate-200 p-4 md:col-span-2">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Password</div>
+          <div id="credPassword" class="text-slate-900 font-bold mt-1"></div>
+        </div>
+      </div>
+    </div>
+    <div class="p-6 pt-0 flex flex-col sm:flex-row gap-3 justify-end">
+      <button type="button" id="copyCredentials" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50">
+        Copy
+      </button>
+      <button type="button" id="continueCredentials" onclick="window.location.assign('/admin/manage_employees')" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-slate-800">
+        Continue
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const registerEmployeeForm = document.getElementById('registerEmployeeForm');
+const credentialsModal = document.getElementById('credentialsModal');
+const closeCredentialsModal = document.getElementById('closeCredentialsModal');
+const continueCredentials = document.getElementById('continueCredentials');
+const copyCredentials = document.getElementById('copyCredentials');
+const credUsername = document.getElementById('credUsername');
+const credEmployeeId = document.getElementById('credEmployeeId');
+const credPhone = document.getElementById('credPhone');
+const credPassword = document.getElementById('credPassword');
+const emailStatusNote = document.getElementById('emailStatusNote');
+
+function showCredentialsModal() {
+  if (!credentialsModal) {
+    return;
+  }
+  credentialsModal.classList.remove('hidden');
+  credentialsModal.classList.add('flex');
+}
+
+function hideCredentialsModal() {
+  if (!credentialsModal) {
+    return;
+  }
+  credentialsModal.classList.add('hidden');
+  credentialsModal.classList.remove('flex');
+}
+
+if (closeCredentialsModal) {
+  closeCredentialsModal.addEventListener('click', hideCredentialsModal);
+}
+
+if (continueCredentials) {
+  continueCredentials.addEventListener('click', () => {
+    hideCredentialsModal();
+    window.location.assign('/admin/manage_employees');
+  });
+}
+
+if (copyCredentials) {
+  copyCredentials.addEventListener('click', async () => {
+    const text = `Username: ${credUsername?.textContent || ''}\nEmployee ID: ${credEmployeeId?.textContent || ''}\nMobile Number: ${credPhone?.textContent || ''}\nPassword: ${credPassword?.textContent || ''}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      window.showToast?.('Credentials copied', 'success');
+    } catch (err) {
+      window.showToast?.('Copy failed', 'error');
+    }
+  });
+}
+
+if (credentialsModal) {
+  credentialsModal.addEventListener('click', (event) => {
+    if (event.target === credentialsModal) {
+      hideCredentialsModal();
+    }
+  });
+}
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    hideCredentialsModal();
+  }
+});
+
+if (registerEmployeeForm) {
+  registerEmployeeForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(registerEmployeeForm);
+    try {
+      const response = await fetch('/admin/add_employee', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        window.showToast?.(data.detail || 'Failed to register employee', 'error');
+        return;
+      }
+      if (credUsername) {
+        credUsername.textContent =  data.employee_id  || '';
+      }
+      if (credEmployeeId) {
+        credEmployeeId.textContent = data.employee_id || '';
+      }
+      if (credPhone) {
+        credPhone.textContent = formData.get('phone') || '';
+      }
+      if (credPassword) {
+        credPassword.textContent = data.password || '';
+      }
+      if (emailStatusNote) {
+        if (data.email_sent) {
+          emailStatusNote.textContent = 'Welcome email sent successfully.';
+          emailStatusNote.classList.remove('hidden', 'border-rose-200', 'bg-rose-50', 'text-rose-700');
+          emailStatusNote.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+        } else {
+          emailStatusNote.textContent = 'Welcome email not sent. Check SMTP settings.';
+          emailStatusNote.classList.remove('hidden', 'border-emerald-200', 'bg-emerald-50', 'text-emerald-700');
+          emailStatusNote.classList.add('border-rose-200', 'bg-rose-50', 'text-rose-700');
+        }
+      }
+      if (!data.email_sent) {
+        window.showToast?.('Welcome email not sent. Check SMTP settings.', 'error');
+      }
+      showCredentialsModal();
+    } catch (err) {
+      window.showToast?.('Network error while saving', 'error');
+    }
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends "common/layout_base.html" %}
+{% block page_title %}Employee Details{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --accent-blue: #2563eb;
+}
+
+.details-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.section-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 1.5rem;
+  padding: 1.75rem;
+}
+
+.avatar-large {
+  width: 88px;
+  height: 88px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 800;
+  color: white;
+  border-radius: 2rem;
+}
+
+.meta-pill {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.field-label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.field-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 0.25rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 0.8rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+</style>
+
+<div class="details-wrap p-4 space-y-6">
+  {% set pw_status = request.query_params.get('pw') %}
+  {% if pw_status == 'updated' %}
+    <div class="border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-semibold px-4 py-3 rounded-xl">
+      Password updated successfully.
+    </div>
+  {% elif pw_status == 'invalid' %}
+    <div class="border border-rose-200 bg-rose-50 text-rose-700 text-xs font-semibold px-4 py-3 rounded-xl">
+      Current password is incorrect.
+    </div>
+  {% elif pw_status == 'weak' %}
+    <div class="border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold px-4 py-3 rounded-xl">
+      New password must be at least 6 characters.
+    </div>
+  {% elif pw_status == 'same' %}
+    <div class="border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold px-4 py-3 rounded-xl">
+      New password must be different from the current password.
+    </div>
+  {% elif pw_status == 'mismatch' %}
+    <div class="border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold px-4 py-3 rounded-xl">
+      New password and confirm password do not match.
+    </div>
+  {% endif %}
+  <div class="flex items-center justify-between">
+    <a href="/employee/profile" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">
+      <i class="bi bi-arrow-left"></i> Back to Card
+    </a>
+    <div class="flex items-center gap-3">
+      <div class="meta-pill">Employee Details</div>
+      <a href="/employee/profile/print" class="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
+        <i class="bi bi-printer"></i>
+        Print / PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div class="flex items-center gap-4">
+        {% if user.photo_blob %}
+          <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="avatar-large object-cover" />
+        {% elif user.photo_path %}
+          <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="avatar-large object-cover" />
+        {% else %}
+          <div class="avatar-large">{{ user.name[0] }}</div>
+        {% endif %}
+        <div>
+          <div class="text-2xl font-black text-slate-900">{{ user.name }}</div>
+          <div class="text-sm font-black text-blue-600 uppercase tracking-widest mt-1">{{ user.role|default('Staff') }}</div>
+          <div class="text-xs text-slate-400 mt-1">ID: {{ user.employee_id }}</div>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="meta-pill">{{ user.department or 'Department N/A' }}</span>
+        <span class="meta-pill">{{ 'Active' if user.is_active else 'Inactive' }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="section-card">
+      <div class="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Work Info</div>
+      <div class="mt-4 space-y-4">
+        <div>
+          <div class="field-label">Department</div>
+          <div class="field-value">{{ user.department or '-' }}</div>
+        </div>
+        <div>
+          <div class="field-label">Title</div>
+          <div class="field-value">{{ user.title or '-' }}</div>
+        </div>
+        <div>
+          <div class="field-label">Team</div>
+          <div class="field-value">{{ user.team.name if user.team else '-' }}</div>
+        </div>
+        <div>
+          <div class="field-label">RFID Tag</div>
+          <div class="field-value">{{ user.rfid_tag or '-' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Personal Info</div>
+      <div class="mt-4 space-y-4">
+        <div>
+          <div class="field-label">Email</div>
+          <div class="field-value">{{ user.email }}</div>
+        </div>
+        <div>
+          <div class="field-label">Date of Birth</div>
+          <div class="field-value">{{ user.date_of_birth.strftime('%d-%m-%Y') if user.date_of_birth else '-' }}</div>
+        </div>
+        <div>
+          <div class="field-label">Mobile Number</div>
+          <div class="field-value">{{ user.phone or '-' }}</div>
+        </div>
+        <div>
+          <div class="field-label">Address</div>
+          <div class="field-value">{{ user.address or '-' }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Security</div>
+    <div class="mt-4 flex items-center justify-between">
+      <div>
+        <div class="field-label">Password</div>
+        <div class="field-value">********</div>
+      </div>
+      <button type="button" id="openPasswordModal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-900 hover:text-white transition">
+        Change Password
+      </button>
+    </div>
+  </div>
+
+  <div class="section-card">
+    <div class="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Update Contact</div>
+    <form method="post" action="/employee/profile/update" class="mt-4 space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="field-label">Official Email</label>
+          <input type="email" name="email" value="{{ user.email }}" class="form-input" />
+        </div>
+        <div>
+          <label class="field-label">Mobile Number</label>
+          <input type="text" name="phone" value="{{ user.phone }}" class="form-input" />
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Residential Address</label>
+        <textarea name="address" rows="3" class="form-input resize-none">{{ user.address }}</textarea>
+      </div>
+      <div class="flex justify-end">
+        <button type="submit" class="px-6 py-2 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800">
+          Update Profile
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="p-4 bg-blue-50/60 border border-blue-100 rounded-xl text-xs text-blue-800">
+    Some information (ID, Department, RFID, Team) is managed by HR. If any details are incorrect, contact the IT helpdesk.
+  </div>
+</div>
+
+<div id="passwordModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 z-50">
+  <div class="bg-white rounded-2xl w-[92%] max-w-md shadow-2xl border border-slate-200">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Security</div>
+        <div class="text-lg font-black text-slate-900">Change Password</div>
+      </div>
+      <button type="button" id="closePasswordModal" class="w-9 h-9 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <form method="post" action="/employee/password/change" class="p-6 space-y-4">
+      <div>
+        <label class="field-label">Current Password</label>
+        <div class="relative">
+          <input id="currentPasswordInput" type="password" name="current_password" class="form-input pr-10" required />
+          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" data-toggle="currentPasswordInput">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">New Password</label>
+        <div class="relative">
+          <input id="newPasswordInput" type="password" name="new_password" class="form-input pr-10" minlength="6" required />
+          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" data-toggle="newPasswordInput">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Confirm Password</label>
+        <div class="relative">
+          <input id="confirmPasswordInput" type="password" name="confirm_password" class="form-input pr-10" minlength="6" required />
+          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" data-toggle="confirmPasswordInput">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button type="button" id="cancelPasswordModal" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-widest hover:bg-slate-800">
+          Update
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const openPasswordModal = document.getElementById('openPasswordModal');
+  const passwordModal = document.getElementById('passwordModal');
+  const closePasswordModal = document.getElementById('closePasswordModal');
+  const cancelPasswordModal = document.getElementById('cancelPasswordModal');
+
+  function hidePasswordModal() {
+    if (!passwordModal) {
+      return;
+    }
+    passwordModal.classList.add('hidden');
+    passwordModal.classList.remove('flex');
+  }
+
+  if (openPasswordModal && passwordModal) {
+    openPasswordModal.addEventListener('click', () => {
+      passwordModal.classList.remove('hidden');
+      passwordModal.classList.add('flex');
+    });
+  }
+
+  if (closePasswordModal) {
+    closePasswordModal.addEventListener('click', hidePasswordModal);
+  }
+
+  if (cancelPasswordModal) {
+    cancelPasswordModal.addEventListener('click', hidePasswordModal);
+  }
+
+  if (passwordModal) {
+    passwordModal.addEventListener('click', (event) => {
+      if (event.target === passwordModal) {
+        hidePasswordModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      hidePasswordModal();
+    }
+  });
+
+  const toggleButtons = document.querySelectorAll('[data-toggle]');
+  toggleButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const inputId = button.getAttribute('data-toggle');
+      const input = inputId ? document.getElementById(inputId) : null;
+      if (!input) {
+        return;
+      }
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      button.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    });
+  });
+</script>
+{% endblock %}

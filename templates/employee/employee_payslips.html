@@ -1,0 +1,312 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Earnings & Payslips{% endblock %}
+
+{% block content %}
+
+<style>
+/* =========================================
+   PREMIUM CORPORATE PAYSLIP STYLES
+   ========================================= */
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(226, 232, 240, 0.7);
+  --corp-navy: #0f172a;
+  --accent-blue: #2563eb;
+  --emerald-600: #059669;
+  --rose-600: #e11d48;
+}
+
+/* Container Polish */
+.payslip-container {
+  max-width: 800px;
+  margin: 0 auto;
+  perspective: 1000px;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+/* Form Controls */
+.select-input {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  color: var(--corp-navy);
+  transition: all 0.2s ease;
+}
+
+.select-input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.05);
+  outline: none;
+}
+
+/* Ledger Styling */
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.ledger-row:last-of-type {
+  border-bottom: none;
+}
+
+.ledger-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.ledger-value {
+  font-weight: 700;
+  color: var(--corp-navy);
+}
+
+/* Total Section */
+.net-salary-box {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+
+/* Animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+{% set months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] %}
+
+<div class="payslip-container space-y-6 p-4">
+
+    {% if error %}
+    <div class="alert alert-warning bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <div class="glass-panel p-6 rounded-[1.5rem] reveal">
+        <form method="GET" action="/employee/payslips" class="flex flex-col md:flex-row gap-4 items-center">
+            <div class="flex gap-2 flex-1 w-full">
+                <div class="flex-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Payroll Month</label>
+                    <select name="month" class="select-input w-full mt-1">
+                        {% for i in range(1,13) %}
+                        <option value="{{ i }}" {% if i == month %}selected{% endif %}>
+                            {{ months[i-1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex-1">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Calendar Year</label>
+                    <select name="year" class="select-input w-full mt-1">
+                        {% for y in range(current_year-5, current_year+1) %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>
+                            {{ y }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button class="w-full md:w-auto mt-5 px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">
+                Generate Statement
+            </button>
+        </form>
+    </div>
+
+    {% if computed %}
+    <div class="glass-panel p-8 rounded-[2rem] space-y-8 reveal" style="animation-delay: 0.1s;">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-8">
+            <div>
+                <h3 class="text-2xl font-black text-slate-900 tracking-tight">Pay Statement</h3>
+                <p class="text-sm font-medium text-slate-500">Period ending {{ month }}/{{ year }}</p>
+            </div>
+          <div class="flex items-center gap-3">
+            {% if payroll and payroll.locked %}
+            <span class="inline-flex items-center gap-2 bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full text-xs font-bold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v2H5a2 2 0 00-2 2v4a2 2 0 002 2h10a2 2 0 002-2v-4a2 2 0 00-2-2h-1V6a4 4 0 00-4-4zm-1 8V6a1 1 0 112 0v4a1 1 0 11-2 0z" clip-rule="evenodd"/></svg>
+              PAYROLL GENERATED
+            </span>
+            {% endif %}
+          </div>
+            <div class="text-left md:text-right">
+                <p class="text-sm font-bold text-slate-900">{{ user.name }}</p>
+                <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest">ID: {{ user.employee_id }}</p>
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Earnings Breakdown</h4>
+            
+            <div class="ledger-row">
+                <span class="ledger-label">Total Productive Time</span>
+                <span class="ledger-value">{{ total_hours }} <span class="text-xs font-medium">HRS</span></span>
+            </div>
+
+            <div class="ledger-row">
+                <span class="ledger-label">Gross Base Salary</span>
+                <span class="ledger-value">₹{{ "{:,.2f}".format(gross_salary) }}</span>
+            </div>
+        </div>
+
+        <div class="space-y-1">
+            <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Deductions & Statutory</h4>
+            
+            <div class="ledger-row">
+                <span class="ledger-label">Absence/Leave Adjustments</span>
+                <span class="ledger-value text-rose-600">- ₹{{ "{:,.2f}".format(leave_deduction) }}</span>
+            </div>
+
+            <div class="ledger-row">
+                <span class="ledger-label">Income Tax Withholding (10%)</span>
+                <span class="ledger-value text-rose-600">- ₹{{ "{:,.2f}".format(tax_deduction) }}</span>
+            </div>
+        </div>
+
+        <div class="net-salary-box p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Net Payable Amount</p>
+                <p class="text-4xl font-black text-emerald-600 tracking-tighter mt-1">
+                    ₹{{ "{:,.2f}".format(net_salary) }}
+                </p>
+            </div>
+            
+            <button type="button"
+               id="openPayslipModal"
+               data-download-url="/employee/payslips/download?month={{ month }}&year={{ year }}"
+               class="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download PDF
+            </button>
+        </div>
+
+        <p class="text-[10px] text-center text-slate-400 font-medium">
+            This is a computer-generated document and does not require a physical signature. 
+            For payroll discrepancies, contact HR within 48 hours of receipt.
+        </p>
+
+          <div id="payslipModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 z-50">
+            <div class="bg-white rounded-2xl w-[92%] max-w-lg shadow-2xl border border-slate-200">
+              <div class="p-6 border-b border-slate-100">
+                <div class="text-xs font-black text-slate-400 uppercase tracking-widest">Confirm Download</div>
+                <h3 class="text-xl font-black text-slate-900 mt-2">Payslip PDF</h3>
+                <p class="text-sm text-slate-500 mt-1">Review the details before continuing.</p>
+              </div>
+              <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</div>
+                    <div class="font-bold text-slate-800">{{ user.name }}</div>
+                    <div class="text-xs text-slate-500">ID: {{ user.employee_id }}</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Period</div>
+                    <div class="font-bold text-slate-800">{{ months[month-1] }} {{ year }}</div>
+                    <div class="text-xs text-slate-500">Net Pay: ₹{{ "{:,.2f}".format(net_salary) }}</div>
+                  </div>
+                </div>
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-xs text-slate-500">
+                  The PDF includes your earnings, deductions, and attendance summary for this period.
+                </div>
+              </div>
+              <div class="p-6 pt-0 flex flex-col sm:flex-row gap-3 justify-end">
+                <button type="button" id="closePayslipModal" class="px-5 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold hover:bg-slate-50">
+                  Cancel
+                </button>
+                <button type="button" id="continuePayslipDownload" class="px-5 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800">
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+
+    </div>
+    {% else %}
+    <div class="glass-panel p-20 rounded-[2rem] text-center reveal delay-1">
+        <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        </div>
+        <p class="text-slate-500 font-bold uppercase tracking-widest text-xs">Select a period to view your statement</p>
+    </div>
+    {% endif %}
+
+</div>
+
+{% if computed %}
+<script>
+const openPayslipModal = document.getElementById("openPayslipModal");
+const payslipModal = document.getElementById("payslipModal");
+const closePayslipModal = document.getElementById("closePayslipModal");
+const continuePayslipDownload = document.getElementById("continuePayslipDownload");
+
+if (openPayslipModal && payslipModal) {
+  openPayslipModal.addEventListener("click", () => {
+    payslipModal.classList.remove("hidden");
+    payslipModal.classList.add("flex");
+  });
+}
+
+function closeModal() {
+  if (!payslipModal) {
+    return;
+  }
+  payslipModal.classList.add("hidden");
+  payslipModal.classList.remove("flex");
+}
+
+if (closePayslipModal) {
+  closePayslipModal.addEventListener("click", closeModal);
+}
+
+if (payslipModal) {
+  payslipModal.addEventListener("click", (event) => {
+    if (event.target === payslipModal) {
+      closeModal();
+    }
+  });
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeModal();
+  }
+});
+
+if (continuePayslipDownload && openPayslipModal) {
+  continuePayslipDownload.addEventListener("click", () => {
+    const downloadUrl = openPayslipModal.getAttribute("data-download-url");
+    if (downloadUrl) {
+      window.location.href = downloadUrl;
+    }
+    closeModal();
+  });
+}
+</script>
+{% endif %}
+
+{% endblock %}

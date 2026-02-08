@@ -1,0 +1,122 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Payroll Overview | TeamSync{% endblock %}
+
+{% block page_title %}FINANCIAL_PAYROLL_SYNC{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Total Personnel</p>
+      <p class="text-3xl font-black tracking-tighter">{{ payroll|length }}</p>
+    </div>
+
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Mean Disbursement</p>
+      <p class="text-2xl font-black tracking-tighter">₹{{ avg_salary }}</p>
+    </div>
+
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Peak Compensation</p>
+      <p class="text-2xl font-black tracking-tighter">₹{{ max_salary }}</p>
+    </div>
+
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+      <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Total Net Payout</p>
+      <p class="text-3xl font-black tracking-tighter text-blue-600">₹{{ total_salary }}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="lg:col-span-1 border border-[var(--border)] bg-[var(--panel)] p-8">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="h-5 w-1 bg-blue-600"></div>
+            <h3 class="text-xs font-black uppercase tracking-[0.2em]">Salary Variance</h3>
+        </div>
+        <div class="relative h-[300px]">
+            <canvas id="payrollChart"></canvas>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 border border-[var(--border)] bg-[var(--panel)] p-8">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="h-5 w-1 bg-blue-600"></div>
+            <h3 class="text-xs font-black uppercase tracking-[0.2em]">Adjustment Terminal</h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-[var(--border)] text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <th class="pb-4">Personnel</th>
+                        <th class="pb-4 text-center">Base</th>
+                        <th class="pb-4 text-center">Leave Deduction</th>
+                        <th class="pb-4 text-center">Tax</th>
+                        <th class="pb-4 text-right">Net Salary</th>
+                        
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-[var(--border)]">
+                    {% for p in payroll %}
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="py-4">
+                            <p class="font-bold text-sm">{{ p.name }}</p>
+                            <p class="executive-mono text-[9px] text-slate-500 uppercase">ID: {{ p.employee_id }}</p>
+                        </td>
+                        
+                          <td class="py-4 text-center">{{ p.base_salary | round(2) }}</td>
+
+                          <td class="py-4 text-center">-₹{{ p.leave_deduction | round(2) }}</td>
+
+                          <td class="py-4 text-center">-₹{{ p.tax | round(2) }}</td>
+
+                          <td class="py-4 text-right font-bold text-blue-600">₹{{ p.net_salary | round(2) }}</td>
+                    </tr>
+                    <tr>
+                      <td colspan="5" class="py-2">
+                        <div class="mt-4 p-4 bg-slate-50 border">
+                          <h4 class="font-bold text-sm">Salary Explanation</h4>
+                          <p class="text-xs text-slate-600">
+                            Salary reduced by ₹{{ p.leave_deduction | round(2) }} due to {{ p.unpaid_leaves }} unpaid leaves.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = {{ (payroll | map(attribute='name') | list) | tojson }};
+const values = {{ (payroll | map(attribute='net_salary') | list) | tojson }};
+
+new Chart(document.getElementById('payrollChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{
+      data: values,
+      backgroundColor: '#2563eb',
+      borderRadius: 2
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }},
+    scales: {
+      y: { ticks: { font: { family: 'JetBrains Mono', size: 9 }}},
+      x: { grid: { color: "#f1f5f9" }, ticks: { font: { family: 'JetBrains Mono', size: 9 }}}
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Chat | TeamSync{% endblock %}
+
+{% block content %}
+<div class="max-w-[1400px] mx-auto h-[calc(100vh-200px)] flex gap-6">
+
+    <!-- LEFT : CONTACT LIST -->
+    <div class="w-80 flex flex-col border border-[var(--border)] bg-white">
+        <div class="p-6 border-b border-[var(--border)] bg-slate-50/50">
+            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">
+                Contacts
+            </p>
+            <div class="relative">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" placeholder="Search contacts..."
+                       class="w-full bg-white border border-slate-200 pl-9 pr-3 py-2 text-[10px] font-bold outline-none focus:border-blue-600">
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto custom-scrollbar">
+            {% for member in members %}
+            <button onclick="switchChannel('{{ member.id }}','{{ member.name }}')"
+                    class="w-full flex items-center gap-4 p-4 border-b border-slate-100 hover:bg-blue-50/50 transition-all">
+                <div class="w-10 h-10 bg-slate-900 flex items-center justify-center text-white font-black text-sm">
+                    {{ member.name[0] }}
+                </div>
+                <div class="text-left flex-1">
+                    <p class="text-xs font-black tracking-tight text-slate-900">
+                        {{ member.name }}
+                    </p>
+                    <p class="executive-mono text-[9px] text-slate-400 tracking-tighter">
+                        {{ member.department }}
+                    </p>
+                </div>
+                <div class="w-2 h-2 rounded-full
+                    {% if member.online %}
+                        bg-emerald-500
+                    {% else %}
+                        bg-slate-300
+                    {% endif %}
+                ">
+                </div>
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- RIGHT : CHAT AREA -->
+    <div class="flex-1 flex flex-col border border-[var(--border)] bg-white relative overflow-hidden">
+
+        <div class="h-1 w-full bg-blue-600 absolute top-0 left-0"></div>
+
+        <div class="p-6 border-b border-[var(--border)] flex justify-between items-center">
+            <div>
+                <h3 id="activeRecipient"
+                    class="text-lg font-black tracking-tight text-slate-900">
+                    Select a chat
+                </h3>
+                <p class="executive-mono text-[9px] font-bold text-blue-600 tracking-widest">
+                    Online chat
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] font-black text-slate-400 tracking-widest">
+                    Status:
+                </span>
+                <span class="px-2 py-1 border border-slate-200 text-[9px] font-black text-slate-500 tracking-widest">
+                    Idle
+                </span>
+            </div>
+        </div>
+
+        <div id="messageFeed"
+             class="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50/30 custom-scrollbar flex flex-col">
+            <div class="py-24 text-center m-auto">
+                <i class="bi bi-chat-dots text-4xl text-slate-200 mb-4 block"></i>
+                <p class="executive-mono text-slate-400 text-[10px] tracking-[0.3em]">
+                    Select a contact to start chatting
+                </p>
+            </div>
+        </div>
+
+        <div class="p-6 border-t border-[var(--border)] bg-white">
+            <form id="chatForm" class="flex gap-4">
+                <input type="text" id="messageInput"
+                       placeholder="Type a message..."
+                       class="flex-1 bg-slate-50 border border-slate-200 px-6 py-4 text-xs font-bold outline-none focus:border-blue-600">
+                <button type="submit"
+                        class="px-10 bg-slate-900 text-white text-[10px] font-black tracking-[0.2em] hover:bg-blue-600">
+                    Send
+                </button>
+            </form>
+        </div>
+
+    </div>
+</div>
+
+<style>
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; }
+
+.msg-bubble {
+    max-width: 70%;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.msg-out {
+    align-self: flex-end;
+    background: #0f172a;
+    color: white;
+    border-color: #1e293b;
+}
+.msg-in {
+    align-self: flex-start;
+    background: white;
+    color: #0f172a;
+}
+</style>
+<script>
+let currentRecipient = null;
+
+/* ===== SWITCH CHAT ===== */
+function switchChannel(id, name) {
+    currentRecipient = id;
+    document.getElementById("activeRecipient").textContent = name;
+
+    const feed = document.getElementById("messageFeed");
+    feed.innerHTML = "";
+
+    fetch(`/api/chat/history/${id}`)
+        .then(res => res.json())
+        .then(messages => {
+            messages.forEach(m => {
+                const type = m.sender_id === {{ user.id }} ? "msg-out" : "msg-in";
+                appendMessage(m.content, type, m.timestamp);
+            });
+            refreshChatBadge(); // reset unread after opening
+        });
+}
+
+/* ===== SEND MESSAGE ===== */
+document.getElementById("chatForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (!currentRecipient) return;
+
+    const input = document.getElementById("messageInput");
+    const text = input.value.trim();
+    if (!text) return;
+
+    fetch("/api/chat/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            receiver_id: currentRecipient,
+            message: text
+        })
+    }).then(() => {
+        appendMessage(
+            text,
+            "msg-out",
+            new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        );
+        input.value = "";
+    });
+});
+
+/* ===== APPEND MESSAGE ===== */
+function appendMessage(text, type, time) {
+    const feed = document.getElementById("messageFeed");
+    const msg = document.createElement("div");
+    msg.className = `msg-bubble ${type}`;
+    msg.innerHTML = `
+        <p>${text}</p>
+        <span class="executive-mono text-[8px] mt-2 block opacity-50 text-right">${time}</span>
+    `;
+    feed.appendChild(msg);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+/* ===== UNREAD BADGE LOGIC ===== */
+function refreshChatBadge() {
+    fetch("/api/chat/unread-count")
+        .then(res => res.json())
+        .then(data => {
+            const badge = document.getElementById("chatBadge");
+            if (!badge) return;
+
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        });
+}
+
+/* poll unread count */
+setInterval(refreshChatBadge, 5000);
+refreshChatBadge();
+</script>
+{% endblock %}
