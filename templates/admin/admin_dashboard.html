@@ -32,8 +32,8 @@
   <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
     <div class="flex justify-between items-start">
       <div>
-        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">No. of Employees</p>
-        <p class="text-5xl font-black tracking-tighter">{{ employees|length }}</p>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">On Campus</p>
+        <p class="text-5xl font-black tracking-tighter">{{ present_count }}</p>
       </div>
       <div class="w-12 h-12 bg-blue-50 flex items-center justify-center text-blue-600">
           <i class="bi bi-people-fill text-2xl"></i>
@@ -56,11 +56,35 @@
   <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
     <div class="flex justify-between items-start">
       <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Absentees</p>
+        <p class="text-5xl font-black tracking-tighter text-red-600">{{ absentee_count }}</p>
+      </div>
+      <div class="w-12 h-12 bg-red-50 text-red-600 flex items-center justify-center">
+          <i class="bi bi-person-x-fill text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
+    <div class="flex justify-between items-start">
+      <div>
         <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">RFID Alerts</p>
         <p class="text-5xl font-black tracking-tighter {% if unknown_rfids %}text-red-600{% endif %}">{{ unknown_rfids|length }}</p>
       </div>
       <div class="w-12 h-12 {% if unknown_rfids %}bg-red-50 text-red-600{% else %}bg-slate-50 text-slate-600{% endif %} flex items-center justify-center">
           <i class="bi bi-broadcast-pin text-2xl"></i>
+      </div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] p-8 bg-[var(--panel)] group hover:shadow-xl transition-all">
+    <div class="flex justify-between items-start">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Invalid Room Entries</p>
+        <p class="text-5xl font-black tracking-tighter {% if inappropriate_entries %}text-red-600{% else %}text-green-600{% endif %}">{{ inappropriate_entries|length }}</p>
+      </div>
+      <div class="w-12 h-12 {% if inappropriate_entries %}bg-red-50 text-red-600{% else %}bg-green-50 text-green-600{% endif %} flex items-center justify-center">
+          <i class="bi bi-exclamation-triangle text-2xl"></i>
       </div>
     </div>
   </div>
@@ -154,13 +178,21 @@
   </div>
 </div>
 
-<div id="modal" class="hidden fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
-  <div class="bg-[var(--panel)] border border-[var(--border)] p-10 max-w-sm w-full relative">
-    <div class="h-1 w-full bg-blue-600 absolute top-0 left-0"></div>
-    <h3 id="modalTitle" class="text-xs font-black uppercase tracking-widest mb-8 text-blue-600"></h3>
-    <div id="modalBody" class="space-y-4"></div>
-    <button onclick="closeModal()" class="w-full mt-10 py-4 bg-slate-900 text-white font-black text-xs uppercase tracking-widest hover:bg-blue-600 transition-all">Close Window</button>
+<div id="modal" class="hidden fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex justify-center items-center p-4 animate-fadeIn">
+  <div class="bg-[var(--panel)] border-2 border-blue-600 p-12 max-w-lg w-full relative shadow-2xl rounded-lg">
+    <div class="h-2 w-full bg-gradient-to-r from-blue-600 to-blue-400 absolute top-0 left-0 rounded-t-lg"></div>
+    
+    <h3 id="modalTitle" class="text-lg font-black uppercase tracking-widest mb-6 text-blue-600"></h3>
+    
+    <div id="modalBody" class="space-y-3 max-h-96 overflow-y-auto">
+      <!-- Populated by JavaScript -->
+    </div>
+    
+    <button onclick="closeModal()" class="w-full mt-8 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black text-xs uppercase tracking-widest hover:from-blue-700 hover:to-blue-600 transition-all rounded shadow-lg">
+      Close Window
+    </button>
   </div>
+</div>
 </div>
 
 <!-- Error Popup Modal -->
@@ -391,13 +423,23 @@ document.getElementById("addEmployeeForm").addEventListener("submit", async (e) 
 
 // Existing modal functions
 function openModal(loc, room, count){
-  document.getElementById("modalTitle").innerHTML = `${loc} // ROOM ${room}`;
+  document.getElementById("modalTitle").innerHTML = `${loc} <span class="text-slate-400">///</span> ROOM ${room} <span class="text-amber-500">[${count}]</span>`;
   fetch(`/api/block_persons?location=${loc}&room=${room}`)
     .then(r=>r.json())
     .then(data=>{
       let html="";
-      if(data.persons.length===0) html = "<p class='executive-mono text-slate-400'>Currently Vacant</p>";
-      else data.persons.forEach(p=> html += `<div class='p-3 border border-[var(--border)] font-bold text-sm'>${p.name}</div>`);
+      if(data.persons.length===0) {
+        html = "<div class='py-8 text-center'><p class='text-slate-500 font-bold text-sm'>Currently Vacant</p></div>";
+      } else {
+        html = "<div class='space-y-2'>";
+        data.persons.forEach((p, idx) => {
+          html += `<div class='flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-transparent border border-blue-200 rounded'>
+            <div class='w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-black'>${idx + 1}</div>
+            <span class='font-bold text-slate-900'>${p.name}</span>
+          </div>`;
+        });
+        html += "</div>";
+      }
       document.getElementById("modalBody").innerHTML = html;
       document.getElementById("modal").classList.remove("hidden");
     });

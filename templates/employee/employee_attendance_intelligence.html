@@ -1,0 +1,79 @@
+{% extends "common/layout_base.html" %}
+{% block page_title %}Attendance Behavior Intelligence{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-8 space-y-8">
+
+  <h1 class="text-3xl font-black text-slate-900">
+    Attendance Behavior Intelligence
+  </h1>
+
+  <p class="text-sm text-slate-500">
+    Analytics derived from RFID attendance logs
+  </p>
+
+  <!-- METRICS -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Average Login Hour</p>
+      <p class="text-2xl font-black">{{ metrics.average_login_hour }}</p>
+    </div>
+
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Late Arrival Days</p>
+      <p class="text-2xl font-black text-orange-600">{{ metrics.late_arrival_days }}</p>
+    </div>
+
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Absent Days</p>
+      <p class="text-2xl font-black text-red-600">{{ metrics.absent_days }}</p>
+    </div>
+
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Average Work Hours</p>
+      <p class="text-2xl font-black">{{ metrics.average_work_hours }}</p>
+    </div>
+
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Total Days Analyzed</p>
+      <p class="text-2xl font-black">{{ metrics.total_days_analyzed }}</p>
+    </div>
+
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Anomalies Detected</p>
+      <p class="text-2xl font-black {% if anomalies|length > 0 %}text-red-600{% else %}text-green-600{% endif %}">
+        {{ anomalies|length }}
+      </p>
+    </div>
+  </div>
+
+  <!-- ANOMALIES TABLE -->
+  <div class="bg-white border p-6">
+    <h2 class="text-lg font-bold mb-4">Detected Anomalies</h2>
+
+    {% if anomalies %}
+    <table class="w-full text-sm border-collapse">
+      <thead>
+        <tr class="border-b">
+          <th class="text-left p-2">Employee ID</th>
+          <th class="text-left p-2">Date</th>
+          <th class="text-left p-2">Work Hours</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anomalies %}
+        <tr class="border-b">
+          <td class="p-2">{{ a.employee_id }}</td>
+          <td class="p-2">{{ a.date }}</td>
+          <td class="p-2 text-red-600 font-bold">{{ a.duration }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <p class="text-slate-400 italic">No abnormal attendance patterns detected.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

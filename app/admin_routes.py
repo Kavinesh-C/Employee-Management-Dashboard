@@ -10,7 +10,7 @@ from .database import get_db
 from .models import (
     User, Attendance, RemovedEmployee, UnknownRFID, Room, Department,
     Task, LeaveRequest, Team, TeamMember, Payroll, ProjectTask, ProjectTaskAssignee,
-    EmailSettings
+    EmailSettings, InappropriateEntry
 )
 from .auth import hash_password
 from .email_service import send_welcome_email, send_leave_status_email
@@ -27,16 +27,96 @@ def register_admin_routes(app):
     async def admin_dashboard(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "admin":
             raise HTTPException(status_code=403)
+        
+        # Fetch live blocks data (occupancy by room)
+        from sqlalchemy import func
+        import datetime as dt
+
+        # Identify rooms registered in Room table
+        rooms = db.query(Room).all()
+        valid_rooms = {(r.location_name, r.room_no) for r in rooms}
+
+        # Detect any attendance records today that reference invalid rooms and log them
+        today = dt.date.today()
+        start_of_day = dt.datetime.combine(today, dt.time.min)
+        invalid_attendances = db.query(Attendance).filter(Attendance.date == today).all()
+        for a in invalid_attendances:
+            if (a.location_name, a.room_no) not in valid_rooms:
+                # avoid duplicate logs for same employee/location/room within same day
+                exists = db.query(InappropriateEntry).filter(
+                    InappropriateEntry.employee_id == a.employee_id,
+                    InappropriateEntry.location_name == a.location_name,
+                    InappropriateEntry.room_no == a.room_no,
+                    InappropriateEntry.timestamp >= start_of_day
+                ).first()
+                if not exists:
+                    db.add(InappropriateEntry(
+                        employee_id=a.employee_id,
+                        rfid_tag=(a.user.rfid_tag if getattr(a, 'user', None) else ''),
+                        location_name=a.location_name,
+                        room_no=a.room_no,
+                        reason=f"Recorded in non-registered room",
+                        timestamp=a.entry_time or dt.datetime.utcnow()
+                    ))
+        db.commit()
+
+        # Now aggregate only rooms that exist in Room table
+        blocks_data = (
+            db.query(
+                Attendance.location_name,
+                Attendance.room_no,
+                func.count(Attendance.id).label("count")
+            )
+            .join(Room, (Room.location_name == Attendance.location_name) & (Room.room_no == Attendance.room_no))
+            .filter(
+                Attendance.exit_time.is_(None),
+                Attendance.date == today
+            )
+            .group_by(Attendance.location_name, Attendance.room_no)
+            .all()
+        )
+        blocks = [
+            {
+                "location_name": b.location_name,
+                "room_no": b.room_no,
+                "count": b.count
+            }
+            for b in blocks_data
+        ]
+
+        # Fetch inappropriate entries (invalid rooms)
+        inappropriate_entries = db.query(InappropriateEntry).order_by(InappropriateEntry.timestamp.desc()).limit(20).all()
+        
+        # Other dashboard datasets
+        employees = db.query(User).filter(User.is_active == True).all()
+        total_active = len(employees)
+        # Number of employees currently inside campus: distinct open attendances today
+        present_count = db.query(func.count(func.distinct(Attendance.employee_id))).filter(
+            Attendance.exit_time.is_(None),
+            Attendance.date == today
+        ).scalar() or 0
+        try:
+            present_count = int(present_count)
+        except Exception:
+            present_count = 0
+        absentee_count = max(0, total_active - present_count)
+        unknown_rfids = db.query(UnknownRFID).order_by(UnknownRFID.timestamp.desc()).limit(5).all()
+        admins = db.query(User).filter(User.role == "admin").all()
+        removed_employees = db.query(RemovedEmployee).order_by(RemovedEmployee.removed_at.desc()).limit(5).all()
+
         return templates.TemplateResponse("admin/admin_dashboard.html",
-                                           {"request": request,
-                                            "user": user,
-                                            "blocks": [],
-                                            "employees": [],
-                                            "unknown_rfids": [],
-                                            "admins": [],
-                                            "removed_employees": []
-                                            }
-                                            )
+                           {"request": request,
+                            "user": user,
+                            "blocks": blocks,
+                            "employees": employees,
+                            "unknown_rfids": unknown_rfids,
+                            "admins": admins,
+                            "removed_employees": removed_employees,
+                            "inappropriate_entries": inappropriate_entries,
+                            "present_count": present_count,
+                            "absentee_count": absentee_count
+                            }
+                            )
 
     @app.get("/admin/register_employee", response_class=HTMLResponse)
     async def admin_register_employee(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -776,6 +856,40 @@ def register_admin_routes(app):
         db.commit()
         return RedirectResponse("/admin/unknown_rfid", status_code=303)
 
+    @app.get("/admin/inappropriate_entries", response_class=HTMLResponse)
+    async def admin_inappropriate_entries(
+        request: Request,
+        search: Optional[str] = None,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ):
+        if user.role != "admin":
+            raise HTTPException(status_code=403, detail="Access denied")
+        query = db.query(InappropriateEntry)
+        if search:
+            query = query.filter(
+                (InappropriateEntry.employee_id.like(f"%{search}%")) |
+                (InappropriateEntry.room_no.like(f"%{search}%")) |
+                (InappropriateEntry.location_name.ilike(f"%{search}%"))
+            )
+        entries = query.order_by(InappropriateEntry.timestamp.desc()).all()
+        return templates.TemplateResponse(
+            "admin/admin_inappropriate_entries.html",
+            {
+                "request": request,
+                "user": user,
+                "search": search,
+                "entries": entries,
+                "current_year": datetime.datetime.utcnow().year
+            }
+        )
+
+    @app.post("/admin/delete_inappropriate_entry")
+    async def delete_inappropriate_entry(request: Request, entry_id: int = Form(...), db: Session = Depends(get_db)):
+        db.query(InappropriateEntry).filter(InappropriateEntry.id == entry_id).delete()
+        db.commit()
+        return RedirectResponse("/admin/inappropriate_entries", status_code=303)
+
     @app.get("/admin/leave_requests", response_class=HTMLResponse)
     async def admin_leave_page(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "admin":
@@ -822,3 +936,43 @@ def register_admin_routes(app):
             )
             db.commit()
         return RedirectResponse("/admin/leave_requests", status_code=303)
+    
+    @app.get("/admin/attendance-intelligence", response_class=HTMLResponse)
+    async def admin_attendance_intelligence(
+        request: Request,
+        employee_id: Optional[str] = None,
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_user)
+    ):
+        # Admins and managers may view organization-wide intelligence; others denied
+        if user.role not in ("admin", "manager"):
+            raise HTTPException(status_code=403)
+
+        from .analytics.attendance_intelligence import (
+            get_attendance_dataframe,
+            compute_behavior_metrics,
+            detect_attendance_anomalies
+        )
+
+        df = get_attendance_dataframe(db, employee_id=employee_id)
+
+        # Debug logging to help verify access and data filtering
+        try:
+            import logging
+            logging.getLogger("attendance_intel").info(
+                f"admin_attendance_intelligence: user={user.employee_id} role={user.role} employee_id_param={employee_id} records={len(df)}"
+            )
+        except Exception:
+            pass
+        metrics = compute_behavior_metrics(df)
+        anomalies = detect_attendance_anomalies(df)
+
+        return templates.TemplateResponse(
+            "admin/admin_attendance_intelligence.html",
+            {
+                "request": request,
+                "user": user,
+                "metrics": metrics,
+                "anomalies": anomalies
+            }
+        )

@@ -166,6 +166,7 @@
         <a href="/admin/attendance" class="nav-link">
           <i class="bi bi-stopwatch"></i> Attendance
         </a>
+       
         <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mt-8 mb-2">Management</div>
         <a href="/admin/manage_employees" class="nav-link">
           <i class="bi bi-person"></i> Manage Employees
@@ -178,8 +179,11 @@
         <a href="/admin/payroll" class="nav-link">
           <i class="bi bi-safe2"></i> Payroll Overview
         </a>
-           <a href="/admin/unknown_rfid" class="nav-link">
-         <i class="bi bi-question-diamond"></i> Unknown RFID Logs
+        <a href="/admin/unknown_rfid" class="nav-link">
+          <i class="bi bi-question-diamond"></i> Unknown RFID Logs
+        </a>
+        <a href="/admin/inappropriate_entries" class="nav-link">
+          <i class="bi bi-exclamation-triangle"></i> Invalid Room Entries
         </a>
 
       {% else %}
@@ -200,6 +204,9 @@
         {% endif %}
         <a href="/employee/attendance" class="nav-link">
           <i class="bi bi-stopwatch"></i> Attendance
+        </a>
+         <a href="/employee/attendance-intelligence" class="nav-link">
+          <i class="bi bi-graph-up"></i> Attendance Intelligence
         </a>
         <a href="/employee/tasks" class="nav-link">
           <i class="bi bi-check2-square"></i> My Tasks

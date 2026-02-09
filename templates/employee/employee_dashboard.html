@@ -160,8 +160,13 @@
     <div class="glass rounded-2xl p-5 bg-emerald-50/30">
       <p class="stat-label">Current Status</p>
       <div class="mt-2 flex items-center gap-2">
-        <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
-        <p class="text-xl font-bold text-emerald-700">Online</p>
+        {% if current_status and current_status == 'Online' %}
+          <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
+          <p class="text-xl font-bold text-emerald-700">Online</p>
+        {% else %}
+          <div class="h-3 w-3 rounded-full bg-slate-400"></div>
+          <p class="text-xl font-bold text-slate-600">Offline</p>
+        {% endif %}
       </div>
     </div>
 
@@ -204,15 +209,15 @@
       <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p class="stat-label">Check-in</p>
-          <p class="text-lg font-bold text-slate-800 mt-1">09:10 AM</p>
+          <p class="text-lg font-bold text-slate-800 mt-1">{{ current_checkin if current_checkin else '-' }}</p>
         </div>
         <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p class="stat-label">Break Time</p>
-          <p class="text-lg font-bold text-slate-800 mt-1">45 min</p>
+          <p class="text-lg font-bold text-slate-800 mt-1">-</p>
         </div>
         <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p class="stat-label">Location</p>
-          <p class="text-lg font-bold text-blue-600 mt-1 truncate">Main HQ</p>
+          <p class="text-lg font-bold text-blue-600 mt-1 truncate">{{ current_location if current_location else (user.department or 'N/A') }}</p>
         </div>
         <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
           <p class="stat-label">Tasks Due</p>

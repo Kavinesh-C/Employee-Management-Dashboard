@@ -8,7 +8,8 @@ from .database import get_db
 from .models import (
     Attendance, UnknownRFID, User, AttendanceLog, AttendanceDaily,
     Meeting, ProjectMeetingAssignee, MeetingAttendance, Project, ProjectTask,
-    ProjectTaskAssignee, ProjectAssignment, Notification, Team, Task, LeaveRequest
+    ProjectTaskAssignee, ProjectAssignment, Notification, Team, Task, LeaveRequest,
+    Room, InappropriateEntry
 )
 from .app_context import get_current_user, create_notification
 
@@ -29,6 +30,25 @@ def register_api_routes(app):
             db.add(UnknownRFID(rfid_tag=rfid_tag, location=location_name))
             db.commit()
             return {"status": "unknown_rfid"}
+
+        # Validate that room exists in Room table (only if not gate room)
+        if room_no != GATE_ROOM_NO:
+            valid_room = db.query(Room).filter(
+                Room.room_no == room_no,
+                Room.location_name == location_name
+            ).first()
+            
+            if not valid_room:
+                # Log inappropriate entry (invalid room)
+                db.add(InappropriateEntry(
+                    employee_id=user.employee_id,
+                    rfid_tag=rfid_tag,
+                    location_name=location_name,
+                    room_no=room_no,
+                    reason=f"Room '{room_no}' in '{location_name}' not found in Room table"
+                ))
+                db.commit()
+                return {"status": "invalid_room", "error": "This room is not registered in the system"}
 
         today = datetime.date.today()
         now = datetime.datetime.now()
@@ -87,6 +107,7 @@ def register_api_routes(app):
                 if open_block:
                     open_block.exit_time = now
                     open_block.duration = round((now - open_block.entry_time).total_seconds() / 3600, 2)
+                    
 
                 db.add(Attendance(employee_id=user.employee_id, date=today, entry_time=now, status="PRESENT", location_name=location_name, room_no=room_no))
                 status_msg = "block_entered"
@@ -106,14 +127,16 @@ def register_api_routes(app):
 
     @app.get("/api/blocks")
     async def get_blocks(db: Session = Depends(get_db)):
+        # Only count open attendances (exit_time is NULL) and limit to registered rooms
         blocks = (
             db.query(
                 Attendance.location_name,
                 Attendance.room_no,
                 func.count(Attendance.id).label("count")
             )
+            .join(Room, (Room.location_name == Attendance.location_name) & (Room.room_no == Attendance.room_no))
             .filter(
-                Attendance.status == "PRESENT",
+                Attendance.exit_time.is_(None),
                 Attendance.date == datetime.date.today()
             )
             .group_by(
@@ -122,14 +145,24 @@ def register_api_routes(app):
             )
             .all()
         )
+        return {"blocks": [{"location": b.location_name, "room": b.room_no, "count": b.count} for b in blocks]}
+
+    @app.get("/api/inappropriate-entries")
+    async def get_inappropriate_entries(db: Session = Depends(get_db)):
+        """Get list of inappropriate room entries (invalid rooms not in Room table)"""
+        entries = db.query(InappropriateEntry).order_by(InappropriateEntry.timestamp.desc()).limit(50).all()
         return {
-            "blocks": [
+            "inappropriate_entries": [
                 {
-                    "location": b.location_name,
-                    "room": b.room_no,
-                    "count": b.count
+                    "id": e.id,
+                    "employee_id": e.employee_id,
+                    "rfid_tag": e.rfid_tag,
+                    "location_name": e.location_name,
+                    "room_no": e.room_no,
+                    "reason": e.reason,
+                    "timestamp": e.timestamp.isoformat()
                 }
-                for b in blocks
+                for e in entries
             ]
         }
 

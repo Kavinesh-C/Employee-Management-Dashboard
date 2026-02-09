@@ -1,0 +1,86 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Inappropriate Room Entries | TeamSync{% endblock %}
+
+{% block page_title %}INAPPROPRIATE_ENTRIES{% endblock %}
+
+{% block content %}
+<div class="border border-[var(--border)] bg-[var(--panel)] p-6 mb-8 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-black text-slate-900">Invalid Room Entries</h1>
+    <p class="text-sm text-slate-500 mt-1">Attendance attempts from unregistered rooms</p>
+  </div>
+  <div class="text-right">
+    <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Total</p>
+    <p class="text-4xl font-black text-yellow-600">{{ entries|length }}</p>
+  </div>
+</div>
+
+<div class="border border-[var(--border)] bg-[var(--panel)] p-6 mb-8">
+  <form method="get" class="flex gap-4">
+    <input 
+      type="text" 
+      name="search" 
+      placeholder="Search by Employee ID, Room No, Location..."
+      value="{{ search or '' }}"
+      class="flex-1 px-4 py-2 border border-[var(--border)] bg-[var(--bg)] text-sm"
+    />
+    <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-all">
+      Search
+    </button>
+  </form>
+</div>
+
+{% if entries %}
+<div class="space-y-4">
+  {% for entry in entries %}
+  <div class="border border-yellow-200 bg-yellow-50 p-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 mb-1">Employee ID</p>
+        <p class="font-bold text-slate-900">{{ entry.employee_id or 'Unknown' }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 mb-1">RFID Tag</p>
+        <p class="font-bold text-slate-900 text-sm break-all">{{ entry.rfid_tag }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 mb-1">Location</p>
+        <p class="font-bold text-slate-900">{{ entry.location_name }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 mb-1">Room No</p>
+        <p class="font-bold text-slate-900">{{ entry.room_no }}</p>
+      </div>
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-yellow-600 mb-1">Timestamp</p>
+        <p class="font-bold text-slate-900 text-sm">{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+      </div>
+    </div>
+    
+    <div class="mb-4 pb-4 border-t border-yellow-200">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-yellow-700 mb-2">Reason</p>
+      <p class="text-sm text-yellow-900">{{ entry.reason }}</p>
+    </div>
+
+    <div class="flex justify-end gap-2">
+      <form method="post" action="/admin/delete_inappropriate_entry" class="inline">
+        <input type="hidden" name="entry_id" value="{{ entry.id }}" />
+        <button type="submit" class="px-4 py-2 bg-red-600 text-white font-bold text-xs uppercase hover:bg-red-700 transition-all">
+          Dismiss
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+    <p class="text-slate-500 font-bold">No inappropriate entries found</p>
+    {% if search %}
+      <p class="text-slate-400 text-sm mt-2">Try a different search</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

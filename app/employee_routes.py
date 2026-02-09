@@ -35,6 +35,16 @@ def register_employee_routes(app):
         team_leader = None
         team_project = None
         additional_projects = []
+        # Compute productive hours for current month
+        try:
+            now = datetime.datetime.utcnow()
+            month_start = datetime.datetime(now.year, now.month, 1)
+            total_hours = db.query(func.sum(Attendance.duration)).filter(
+                Attendance.employee_id == user.employee_id,
+                Attendance.entry_time >= month_start
+            ).scalar() or 0
+        except Exception:
+            total_hours = 0
         if user.current_team_id:
             team = db.query(Team).filter(Team.id == user.current_team_id).first()
             if team:
@@ -54,17 +64,46 @@ def register_employee_routes(app):
         tasks = db.query(Task).filter(
             Task.user_id == user.employee_id
         ).order_by(Task.created_at.desc()).limit(5).all()
+        # Leave balance (simple): use paid_leaves_allowed if present
+        leave_balance = getattr(user, "paid_leaves_allowed", None)
+        if leave_balance is None:
+            leave_balance = 0
+
+        # Current presence/status: check for an open attendance (exit_time is NULL)
+        current_status = "Offline"
+        current_location = None
+        current_checkin = None
+        try:
+            open_att = db.query(Attendance).filter(
+                Attendance.employee_id == user.employee_id,
+                Attendance.exit_time == None
+            ).order_by(Attendance.entry_time.desc()).first()
+            if open_att:
+                current_status = "Online"
+                current_location = open_att.location_name or (open_att.room_no or "Unknown")
+                if open_att.entry_time:
+                    current_checkin = open_att.entry_time.strftime("%I:%M %p")
+        except Exception:
+            pass
+
+        # Friendly date label for header
+        current_date_display = datetime.datetime.utcnow().strftime("%b %d, %Y")
         return templates.TemplateResponse("employee/employee_dashboard.html",
                                           {
                                               "request": request,
                                               "user": user,
-                                              "total_hours": total_hours,
+                                              "total_hours": round(total_hours, 2),
                                               "team": team,
                                               "team_leader": team_leader,
                                               "team_project": team_project,
                                               "additional_projects": additional_projects,
                                               "tasks": tasks,
-                                              "current_year": 2026
+                                              "current_year": 2026,
+                                              "leave_balance": leave_balance,
+                                              "current_status": current_status,
+                                              "current_location": current_location,
+                                              "current_checkin": current_checkin,
+                                              "current_date_display": current_date_display
                                           }
                                           )
 
@@ -788,3 +827,50 @@ def register_employee_routes(app):
         if not emp or not emp.photo_blob:
             raise HTTPException(status_code=404, detail="Photo not found")
         return Response(content=emp.photo_blob, media_type=emp.photo_mime or "image/jpeg")
+
+
+
+
+
+
+    @app.get("/employee/attendance-intelligence", response_class=HTMLResponse)
+    async def attendance_intelligence(
+        request: Request,
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_user)
+    ):
+        # Employees may view only their own data; admins and managers may view all
+        from .analytics.attendance_intelligence import (
+            get_attendance_dataframe,
+            compute_behavior_metrics,
+            detect_attendance_anomalies
+        )
+
+        if user.role == "employee":
+            df = get_attendance_dataframe(db, employee_id=user.employee_id)
+        elif user.role in ("admin", "manager"):
+            # admin/manager can view organization-wide data (or filter via query param in admin route)
+            df = get_attendance_dataframe(db)
+        else:
+            raise HTTPException(status_code=403)
+
+        # Debug logging to verify which user and how many records are returned
+        try:
+            import logging
+            logging.getLogger("attendance_intel").info(
+                f"employee_attendance_intelligence: user={user.employee_id} role={user.role} records={len(df)}"
+            )
+        except Exception:
+            pass
+        metrics = compute_behavior_metrics(df)
+        anomalies = detect_attendance_anomalies(df)
+
+        return templates.TemplateResponse(
+            "employee/employee_attendance_intelligence.html",
+            {
+                "request": request,
+                "user": user,
+                "metrics": metrics,
+                "anomalies": anomalies
+            }
+        )

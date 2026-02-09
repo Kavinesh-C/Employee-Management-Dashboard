@@ -158,6 +158,16 @@ class UnknownRFID(Base):
     location = Column(String(100), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
+class InappropriateEntry(Base):
+    __tablename__ = "inappropriate_entries"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(String(60), ForeignKey("users.employee_id"), nullable=True)
+    rfid_tag = Column(String(100), nullable=False)
+    location_name = Column(String(100), nullable=False)
+    room_no = Column(String(50), nullable=False)
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    reason = Column(String(255), default="Invalid room - not in Room table")
+
 class LeaveRequest(Base):
     __tablename__ = "leave_requests"
     id = Column(Integer, primary_key=True, index=True)
