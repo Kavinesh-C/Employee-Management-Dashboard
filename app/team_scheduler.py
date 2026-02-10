@@ -5,6 +5,7 @@ from .models import Team, User, LeaveRequest, Attendance, TeamMember
 
 GRACE_TIME = time(9, 30)
 
+
 def auto_assign_leaders():
     # Only run logic after grace time
     if datetime.now().time() < GRACE_TIME:

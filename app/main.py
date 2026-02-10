@@ -27,6 +27,7 @@ scheduler = BackgroundScheduler()
 Base.metadata.create_all(bind=engine)
 
 
+
 def auto_sync_schema() -> None:
     """Create missing tables and add missing columns (no drops/changes)."""
     try:

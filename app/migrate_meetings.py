@@ -8,6 +8,7 @@ from sqlalchemy import text
 from .database import SessionLocal
 from .models import Meeting
 
+
 def migrate():
     db = SessionLocal()
     try:

@@ -9,6 +9,7 @@ def get_attendance_dataframe(db: Session, employee_id: str | None = None):
         row[0] for row in db.query(User.employee_id).filter(User.role == "admin").all()
     ]
     
+    
     query = db.query(Attendance)
     if employee_id:
         query = query.filter(Attendance.employee_id == employee_id)

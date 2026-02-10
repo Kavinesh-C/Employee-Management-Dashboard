@@ -13,6 +13,7 @@ ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
 
+
 # ================= PASSWORD UTILS =================
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(

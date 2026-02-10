@@ -19,6 +19,7 @@ def chat_history(
     return get_messages(user.id, receiver_id)
 
 
+
 @router.post("/send")
 def send_message(
     msg: MessageIn,

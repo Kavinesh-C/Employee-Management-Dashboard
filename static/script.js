@@ -13,6 +13,7 @@ let calendarState = {
 };
 
 // Initialize calendar on page load
+
 document.addEventListener('DOMContentLoaded', initializeCalendar);
 
 function initializeCalendar() {

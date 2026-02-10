@@ -16,6 +16,7 @@ from .models import User, CalendarEvent, CalendarSettings, LeaveRequest, OfficeH
 import hashlib
 
 
+
 # Security utility functions (inline implementations)
 def sha256_hex(value: str) -> str:
     """Hash a value using SHA-256"""

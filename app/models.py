@@ -5,6 +5,7 @@ import datetime
 
 # --- CORE USER & AUTH ---
 
+
 class User(Base):
     __tablename__ = "users"
 

@@ -6,6 +6,7 @@ import datetime
 import random
 import string
 
+
 from .database import get_db
 from .models import (
     ProjectMeetingAssignee, User, Attendance, RemovedEmployee, UnknownRFID, Room, Department,

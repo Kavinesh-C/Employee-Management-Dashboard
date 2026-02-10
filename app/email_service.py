@@ -19,6 +19,7 @@ _jinja_env = Environment(
     autoescape=select_autoescape(["html", "xml"])
 )
 
+
 def _get_smtp_config() -> dict:
     smtp_user = ""
     smtp_pass = ""
