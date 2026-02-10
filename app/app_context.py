@@ -8,6 +8,7 @@ import hashlib
 templates = Jinja2Templates(directory="templates")
 
 
+
 def create_notification(
     db: Session,
     user_id: int,

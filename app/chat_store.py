@@ -21,6 +21,7 @@ def add_message(sender_id: int, receiver_id: int, message: str):
     unread_counts[receiver_id][sender_id] += 1
 
 
+
 def get_messages(user_id: int, other_id: int):
     # reset unread when opening chat
     unread_counts[user_id][other_id] = 0

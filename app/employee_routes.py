@@ -27,6 +27,7 @@ from .payroll_utils import calculate_monthly_payroll
 BASE_DIR = Path(__file__).resolve().parent
 
 
+
 def register_employee_routes(app):
     @app.get("/employee", response_class=HTMLResponse)
     async def employee_dashboard(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

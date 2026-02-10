@@ -19,6 +19,7 @@ def get_db():
     finally:
         db.close()
 
+
 def get_team_info(db, user_id):
     team = db.execute("""
         SELECT

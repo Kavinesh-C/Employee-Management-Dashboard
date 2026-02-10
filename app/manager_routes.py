@@ -18,6 +18,7 @@ from .email_service import send_bulk_meeting_invites, smtp_enabled
 from . import chat_store
 
 
+
 def register_manager_routes(app):
     @app.get("/manager/manage_teams", response_class=HTMLResponse)
     async def manager_manage_teams(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):

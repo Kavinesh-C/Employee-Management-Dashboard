@@ -4,6 +4,7 @@ from sqlalchemy import func, extract, or_
 from .models import Attendance, LeaveRequest, Payroll
 
 
+
 def calculate_monthly_payroll(db, emp, month, year):
     # Always recalculate payroll for latest leave status (ignore cached Payroll table)
 

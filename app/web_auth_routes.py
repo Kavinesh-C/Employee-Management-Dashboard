@@ -7,6 +7,7 @@ from .auth import authenticate_user
 from .app_context import templates
 
 
+
 def _redirect_for_role(role: str) -> str:
     if role == "admin":
         return "/admin/select_dashboard"
@@ -48,3 +49,4 @@ def register_web_auth_routes(app):
     async def logout(request: Request):
         request.session.clear()
         return RedirectResponse("/login", status_code=303)
+

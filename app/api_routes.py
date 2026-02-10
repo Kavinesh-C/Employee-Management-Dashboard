@@ -14,6 +14,7 @@ from .models import (
 from .app_context import get_current_user, create_notification
 
 
+
 def register_api_routes(app):
     @app.post("/api/attendance")
     async def record_attendance(
