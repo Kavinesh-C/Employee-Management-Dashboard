@@ -829,36 +829,25 @@ def register_employee_routes(app):
             raise HTTPException(status_code=404, detail="Photo not found")
         return Response(content=emp.photo_blob, media_type=emp.photo_mime or "image/jpeg")
 
-
-
-
-
-
     @app.get("/employee/attendance-intelligence", response_class=HTMLResponse)
-    async def attendance_intelligence(
+    async def employee_attendance_intelligence(
         request: Request,
         db: Session = Depends(get_db),
         user: User = Depends(get_current_user)
     ):
-        # Employees view only their own; admins/managers view org-wide
+        # if user.role != "employee":
+        #     raise HTTPException(status_code=403)
+
         from .analytics.attendance_intelligence import (
             get_attendance_dataframe,
             compute_behavior_metrics,
             detect_attendance_anomalies
         )
 
-        if user.role == "employee":
-            df = get_attendance_dataframe(db, employee_id=user.employee_id)
-            metrics = compute_behavior_metrics(df, db=db, employee_id=user.employee_id)
-            anomalies = detect_attendance_anomalies(df, db=db, employee_id=user.employee_id)
-            selected_employee = user
-        elif user.role in ("admin", "manager"):
-            df = get_attendance_dataframe(db)
-            metrics = compute_behavior_metrics(df, db=db, employee_id=None)
-            anomalies = detect_attendance_anomalies(df, db=db, employee_id=None)
-            selected_employee = None
-        else:
-            raise HTTPException(status_code=403)
+        df = get_attendance_dataframe(db, user.employee_id)
+
+        metrics = compute_behavior_metrics(df, db, user.employee_id)
+        anomalies = detect_attendance_anomalies(df)
 
         return templates.TemplateResponse(
             "employee/employee_attendance_intelligence.html",
@@ -867,6 +856,6 @@ def register_employee_routes(app):
                 "user": user,
                 "metrics": metrics,
                 "anomalies": anomalies,
-                "selected_employee": selected_employee
+                "selected_employee": user
             }
         )

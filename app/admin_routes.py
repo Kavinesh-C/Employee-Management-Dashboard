@@ -948,7 +948,6 @@ def register_admin_routes(app):
         db: Session = Depends(get_db),
         user: User = Depends(get_current_user)
     ):
-        # Admins can view all employees; managers view only their department
         if user.role not in ("admin", "manager"):
             raise HTTPException(status_code=403)
 
@@ -956,49 +955,36 @@ def register_admin_routes(app):
             get_attendance_dataframe,
             compute_behavior_metrics,
             detect_attendance_anomalies,
-            get_employee_list
+            detect_department_leave_abuse,
+            predict_absenteeism_risk,
+            compute_performer_lists
         )
 
-        # If employee_id is provided, validate access
         selected_employee = None
+
         if employee_id:
-            emp = db.query(User).filter(User.employee_id == employee_id, User.is_active == True).first()
-            if not emp:
-                raise HTTPException(status_code=404, detail="Employee not found")
-            
-            # Managers can only view their own department
-            if user.role == "manager" and emp.department != user.department:
-                raise HTTPException(status_code=403, detail="Cannot view employees outside your department")
-            
-            selected_employee = emp
-            df = get_attendance_dataframe(db, employee_id=employee_id)
+            selected_employee = db.query(User).filter(
+                User.employee_id == employee_id,
+                User.is_active == True
+            ).first()
+
+            if not selected_employee:
+                raise HTTPException(status_code=404)
+
+            df = get_attendance_dataframe(db, employee_id)
         else:
-            # Organization-wide view
-            if user.role == "manager":
-                # Managers see only their department
-                df = db.query(Attendance).join(User, User.employee_id == Attendance.employee_id).filter(
-                    User.department == user.department,
-                    User.role != "admin"
-                ).all()
-                data = [{
-                    "employee_id": r.employee_id,
-                    "date": r.date,
-                    "entry_time": r.entry_time,
-                    "exit_time": r.exit_time,
-                    "duration": float(r.duration or 0),
-                    "status": r.status
-                } for r in df]
-                df = pd.DataFrame(data)
-            else:
-                df = get_attendance_dataframe(db, employee_id=None)
+            df = get_attendance_dataframe(db)
 
-        # Get employee list for selector (admins see all, managers see only their dept)
-        dept_filter = user.department if user.role == "manager" else None
-        employee_list = get_employee_list(db, department=dept_filter, exclude_admins=True)
+        metrics = compute_behavior_metrics(df, db, employee_id)
+        anomalies = detect_attendance_anomalies(df)
 
-        # Compute metrics with enhanced analytics
-        metrics = compute_behavior_metrics(df, db=db, employee_id=employee_id)
-        anomalies = detect_attendance_anomalies(df, db=db, employee_id=employee_id)
+        top_performers, low_performers = compute_performer_lists(db)
+        dept_leave_abuse = detect_department_leave_abuse(db)
+
+        predicted_risks = [
+            predict_absenteeism_risk(db, e.employee_id)
+            for e in db.query(User).filter(User.role == "employee", User.is_active == True)
+        ]
 
         return templates.TemplateResponse(
             "admin/admin_attendance_intelligence.html",
@@ -1008,7 +994,9 @@ def register_admin_routes(app):
                 "metrics": metrics,
                 "anomalies": anomalies,
                 "selected_employee": selected_employee,
-                "employee_list": employee_list,
-                "selected_employee_id": employee_id
+                "top_performers": top_performers,
+                "low_performers": low_performers,
+                "department_leave_abuse": dept_leave_abuse,
+                "predicted_risks": predicted_risks
             }
         )
