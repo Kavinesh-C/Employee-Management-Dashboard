@@ -5,6 +5,7 @@ from typing import Optional
 import datetime
 import random
 import string
+import pandas as pd
 
 from .database import get_db
 from .models import (
@@ -944,28 +945,57 @@ def register_admin_routes(app):
         db: Session = Depends(get_db),
         user: User = Depends(get_current_user)
     ):
-        # Admins and managers may view organization-wide intelligence; others denied
+        # Admins can view all employees; managers view only their department
         if user.role not in ("admin", "manager"):
             raise HTTPException(status_code=403)
 
         from .analytics.attendance_intelligence import (
             get_attendance_dataframe,
             compute_behavior_metrics,
-            detect_attendance_anomalies
+            detect_attendance_anomalies,
+            get_employee_list
         )
 
-        df = get_attendance_dataframe(db, employee_id=employee_id)
+        # If employee_id is provided, validate access
+        selected_employee = None
+        if employee_id:
+            emp = db.query(User).filter(User.employee_id == employee_id, User.is_active == True).first()
+            if not emp:
+                raise HTTPException(status_code=404, detail="Employee not found")
+            
+            # Managers can only view their own department
+            if user.role == "manager" and emp.department != user.department:
+                raise HTTPException(status_code=403, detail="Cannot view employees outside your department")
+            
+            selected_employee = emp
+            df = get_attendance_dataframe(db, employee_id=employee_id)
+        else:
+            # Organization-wide view
+            if user.role == "manager":
+                # Managers see only their department
+                df = db.query(Attendance).join(User, User.employee_id == Attendance.employee_id).filter(
+                    User.department == user.department,
+                    User.role != "admin"
+                ).all()
+                data = [{
+                    "employee_id": r.employee_id,
+                    "date": r.date,
+                    "entry_time": r.entry_time,
+                    "exit_time": r.exit_time,
+                    "duration": float(r.duration or 0),
+                    "status": r.status
+                } for r in df]
+                df = pd.DataFrame(data)
+            else:
+                df = get_attendance_dataframe(db, employee_id=None)
 
-        # Debug logging to help verify access and data filtering
-        try:
-            import logging
-            logging.getLogger("attendance_intel").info(
-                f"admin_attendance_intelligence: user={user.employee_id} role={user.role} employee_id_param={employee_id} records={len(df)}"
-            )
-        except Exception:
-            pass
-        metrics = compute_behavior_metrics(df)
-        anomalies = detect_attendance_anomalies(df)
+        # Get employee list for selector (admins see all, managers see only their dept)
+        dept_filter = user.department if user.role == "manager" else None
+        employee_list = get_employee_list(db, department=dept_filter, exclude_admins=True)
+
+        # Compute metrics with enhanced analytics
+        metrics = compute_behavior_metrics(df, db=db, employee_id=employee_id)
+        anomalies = detect_attendance_anomalies(df, db=db, employee_id=employee_id)
 
         return templates.TemplateResponse(
             "admin/admin_attendance_intelligence.html",
@@ -973,6 +1003,9 @@ def register_admin_routes(app):
                 "request": request,
                 "user": user,
                 "metrics": metrics,
-                "anomalies": anomalies
+                "anomalies": anomalies,
+                "selected_employee": selected_employee,
+                "employee_list": employee_list,
+                "selected_employee_id": employee_id
             }
         )

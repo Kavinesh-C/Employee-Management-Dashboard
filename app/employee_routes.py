@@ -839,7 +839,7 @@ def register_employee_routes(app):
         db: Session = Depends(get_db),
         user: User = Depends(get_current_user)
     ):
-        # Employees may view only their own data; admins and managers may view all
+        # Employees view only their own; admins/managers view org-wide
         from .analytics.attendance_intelligence import (
             get_attendance_dataframe,
             compute_behavior_metrics,
@@ -848,22 +848,16 @@ def register_employee_routes(app):
 
         if user.role == "employee":
             df = get_attendance_dataframe(db, employee_id=user.employee_id)
+            metrics = compute_behavior_metrics(df, db=db, employee_id=user.employee_id)
+            anomalies = detect_attendance_anomalies(df, db=db, employee_id=user.employee_id)
+            selected_employee = user
         elif user.role in ("admin", "manager"):
-            # admin/manager can view organization-wide data (or filter via query param in admin route)
             df = get_attendance_dataframe(db)
+            metrics = compute_behavior_metrics(df, db=db, employee_id=None)
+            anomalies = detect_attendance_anomalies(df, db=db, employee_id=None)
+            selected_employee = None
         else:
             raise HTTPException(status_code=403)
-
-        # Debug logging to verify which user and how many records are returned
-        try:
-            import logging
-            logging.getLogger("attendance_intel").info(
-                f"employee_attendance_intelligence: user={user.employee_id} role={user.role} records={len(df)}"
-            )
-        except Exception:
-            pass
-        metrics = compute_behavior_metrics(df)
-        anomalies = detect_attendance_anomalies(df)
 
         return templates.TemplateResponse(
             "employee/employee_attendance_intelligence.html",
@@ -871,6 +865,7 @@ def register_employee_routes(app):
                 "request": request,
                 "user": user,
                 "metrics": metrics,
-                "anomalies": anomalies
+                "anomalies": anomalies,
+                "selected_employee": selected_employee
             }
         )
