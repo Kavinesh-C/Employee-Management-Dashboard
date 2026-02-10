@@ -2,110 +2,183 @@
 {% block page_title %}Attendance Intelligence{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto p-8 space-y-10">
+<div class="max-w-7xl mx-auto p-8 space-y-8">
 
-  <!-- HEADER -->
-  <div>
-    <h1 class="text-3xl font-black text-slate-900">Attendance Intelligence</h1>
-    <p class="text-sm text-slate-500 mt-1">
-      Organizational attendance performance & behavioral insights
-    </p>
-  </div>
+  <h1 class="text-3xl font-black text-slate-900">
+    Attendance Behavior Intelligence
+  </h1>
 
-  <!-- KPI STRIP -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-    {% set kpis = [
-      ("Avg Login", metrics.average_login_hour|int ~ ":00"),
-      ("Avg Work Hrs", metrics.average_work_hours),
-      ("Score", metrics.attendance_score ~ "/100"),
-      ("Risk", metrics.risk_level|upper)
-    ] %}
-    {% for label, value in kpis %}
-    <div class="bg-white border rounded-lg p-6">
-      <p class="text-xs uppercase text-slate-400">{{ label }}</p>
-      <p class="text-2xl font-black">{{ value }}</p>
+  
+  <p class="text-sm text-slate-500">
+    Analytics derived from RFID attendance logs
+  </p>
+
+  <!-- METRICS -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white border p-6">
+      <p class="text-xs uppercase text-slate-400">Average Login Hour</p>
+      <p class="text-2xl font-black">{{ metrics.average_login_hour }}</p>
     </div>
-    {% endfor %}
+    {% if user.role in ('admin', 'manager') %}
+      <div class="w-72">
+        <form method="get" action="/admin/attendance-intelligence" class="flex gap-2">
+          <select name="employee_id" class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm" onchange="this.form.submit()">
+            <option value="">-- Organization-wide View --</option>
+            {% for emp in employee_list %}
+              <option value="{{ emp.employee_id }}" {% if emp.employee_id == selected_employee_id %}selected{% endif %}>
+                {{ emp.name }} ({{ emp.employee_id }})
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+    {% endif %}
   </div>
 
-  <!-- LEADERBOARD -->
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  {% if selected_employee %}
+    <div class="border-l-4 border-blue-600 bg-blue-50 p-6 rounded-lg">
+      <h3 class="text-lg font-bold text-blue-900">{{ selected_employee.name }}</h3>
+      <p class="text-sm text-blue-700">Employee ID: {{ selected_employee.employee_id }} | Department: {{ selected_employee.department }}</p>
+    </div>
+  {% endif %}
 
-    <div class="bg-white border rounded-lg p-6">
-      <h2 class="text-sm font-black uppercase tracking-widest text-green-600 mb-4">
-        Top Performers
-      </h2>
-      {% for emp in top_performers %}
-        <div class="flex justify-between py-2 border-b last:border-0">
-          <span class="font-medium">{{ emp.name }}</span>
-          <span class="font-black text-green-600">{{ emp.score }}</span>
+  <!-- PRIMARY METRICS (BI Layer) -->
+  <div>
+    <h2 class="text-xl font-black uppercase tracking-wider text-slate-900 mb-6">Attendance Analytics</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+
+      <!-- Average Login Hour -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Average Login Hour</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.average_login_hour|int }}:00</p>
+        <p class="text-xs text-slate-500 mt-2">Typical daily entry time</p>
+      </div>
+
+      <!-- Late Arrival Frequency -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Late Arrivals</p>
+        <p class="text-4xl font-black text-orange-600">{{ metrics.late_arrival_days }}</p>
+        <p class="text-xs text-slate-500 mt-2">Days with late entry (>10:00)</p>
+      </div>
+
+      <!-- Absent Days -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Absent Days</p>
+        <p class="text-4xl font-black text-red-600">{{ metrics.absent_days }}</p>
+        <p class="text-xs text-slate-500 mt-2">Days marked absent</p>
+      </div>
+
+      <!-- Average Work Hours -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Average Work Hours</p>
+        <p class="text-4xl font-black text-blue-600">{{ metrics.average_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Daily average productivity</p>
+      </div>
+
+      <!-- Work Hours Range -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Min Work Hours</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.min_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Minimum daily hours</p>
+      </div>
+
+      <!-- Work Hours Range -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Max Work Hours</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.max_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Maximum daily hours</p>
+      </div>
+
+      <!-- Total Days Analyzed -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Days Analyzed</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.total_days_analyzed }}</p>
+        <p class="text-xs text-slate-500 mt-2">Record count for analysis</p>
+      </div>
+
+      <!-- Absence Trend -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Absence Trend</p>
+        <p class="text-lg font-bold {% if metrics.absence_trend == 'increasing' %}text-red-600{% elif metrics.absence_trend == 'decreasing' %}text-green-600{% else %}text-slate-600{% endif %}">
+          {% if metrics.absence_trend == 'increasing' %} ↑ Increasing {% elif metrics.absence_trend == 'decreasing' %} ↓ Decreasing {% else %} → Stable {% endif %}
+        </p>
+        <p class="text-xs text-slate-500 mt-2">Month-over-month change</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DEPARTMENT COMPARISON (if org-wide) -->
+  {% if not selected_employee and metrics.department_comparison %}
+  <div>
+    <h2 class="text-xl font-black uppercase tracking-wider text-slate-900 mb-6">Department Comparison</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for dept in metrics.department_comparison %}
+      <div class="border border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-lg">
+        <h3 class="text-lg font-bold text-slate-900">{{ dept.department }}</h3>
+        <div class="mt-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-slate-600">Employees</span>
+            <span class="font-bold text-slate-900">{{ dept.employees }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-slate-600">Avg Work Hours</span>
+            <span class="font-bold text-blue-600">{{ dept.avg_work_hours }}h</span>
+          </div>
         </div>
-      {% else %}
-        <p class="text-sm text-slate-400">No strong performers yet</p>
+      </div>
       {% endfor %}
     </div>
-
-    <div class="bg-white border rounded-lg p-6">
-      <h2 class="text-sm font-black uppercase tracking-widest text-red-600 mb-4">
-        At-Risk Employees
-      </h2>
-      {% for emp in low_performers %}
-        <div class="flex justify-between py-2 border-b last:border-0">
-          <span class="font-medium">{{ emp.name }}</span>
-          <span class="font-black text-red-600">{{ emp.score }}</span>
-        </div>
-      {% else %}
-        <p class="text-sm text-slate-400">No critical cases detected</p>
-      {% endfor %}
-    </div>
-
   </div>
+  {% endif %}
 
-  <!-- COMPARISON CHART -->
-  <div class="bg-white border rounded-lg p-6">
-    <h2 class="text-sm font-black uppercase tracking-widest mb-4">
-      Attendance Score Comparison
-    </h2>
-    <div class="h-[280px]">
-      <canvas id="performanceChart"></canvas>
-    </div>
-  </div>
-
-  <!-- ALERTS -->
+  <!-- ANOMALIES & ALERTS 🔥 -->
   <div>
-    <h2 class="text-sm font-black uppercase tracking-widest mb-4">
-      Alerts
+    <h2 class="text-xl font-black uppercase tracking-wider text-slate-900 mb-6">
+      Anomaly Detection & Alerts
     </h2>
-    {% for a in anomalies %}
-      <div class="border-l-4 border-orange-500 bg-orange-50 p-4 mb-3">
-        <p class="font-medium">{{ a.reason }}</p>
-        <p class="text-xs text-slate-500">{{ a.employee_id }} • {{ a.date }}</p>
+
+    {% if anomalies %}
+      <div class="space-y-4">
+        {% for anomaly in anomalies %}
+        <div class="border-l-4 {% if anomaly.type == 'unusual_hours' %}border-red-600 bg-red-50{% elif anomaly.type == 'late_arrival' %}border-orange-600 bg-orange-50{% elif anomaly.type == 'absence_spike' %}border-red-700 bg-red-50{% endif %} p-5 rounded-r-lg">
+          <div class="flex items-start gap-4">
+            <div class="text-2xl">
+              {% if anomaly.type == 'unusual_hours' %}⏱️{% elif anomaly.type == 'late_arrival' %}⏰{% elif anomaly.type == 'absence_spike' %}📊{% endif %}
+            </div>
+            <div class="flex-1">
+              <p class="font-bold text-slate-900">{{ anomaly.reason }}</p>
+              <div class="mt-2 flex gap-4 text-xs text-slate-600">
+                <span><strong>Employee:</strong> {{ anomaly.employee_id }}</span>
+                <span><strong>Date:</strong> {{ anomaly.date }}</span>
+                {% if anomaly.type == 'unusual_hours' %}
+                  <span><strong>Hours:</strong> {{ anomaly.value }}h</span>
+                {% elif anomaly.type == 'late_arrival' %}
+                  <span><strong>Login:</strong> {{ anomaly.value }}:00</span>
+                {% elif anomaly.type == 'absence_spike' %}
+                  <span><strong>Absences:</strong> {{ anomaly.value }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
       </div>
     {% else %}
-      <p class="text-sm text-slate-400">No anomalies detected</p>
-    {% endfor %}
+      <div class="border border-dashed border-slate-300 bg-slate-50 p-8 rounded-lg text-center">
+        <p class="text-slate-500 font-medium">✓ No anomalies detected</p>
+        <p class="text-xs text-slate-400 mt-1">Attendance patterns are within normal range</p>
+      </div>
+    {% endif %}
   </div>
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-new Chart(document.getElementById("performanceChart"), {
-  type: "bar",
-  data: {
-    labels: {{ (top_performers + low_performers)|map(attribute='name')|list|tojson }},
-    datasets: [{
-      data: {{ (top_performers + low_performers)|map(attribute='score')|list|tojson }},
-      backgroundColor: "#2563eb",
-      borderRadius: 4
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, max: 100 } }
-  }
-});
-</script>
+<style>
+  /* Smooth transitions */
+  * { transition: all 0.2s ease; }
+</style>
+
 {% endblock %}
+
+
