@@ -1,5 +1,5 @@
 {% extends "common/layout_base.html" %}
-{% block page_title %}Attendance Behavior Intelligence{% endblock %}
+{% block page_title %}My Attendance Intelligence{% endblock %}
 
 {% block content %}
 
@@ -20,62 +20,124 @@
       <p class="text-xs uppercase text-slate-400">Average Login Hour</p>
       <p class="text-2xl font-black">{{ metrics.average_login_hour }}</p>
     </div>
+  <div>
+    <h1 class="text-4xl font-black text-slate-900">
+      Your Attendance Statistics
+    </h1>
+    <p class="text-sm text-slate-500 mt-2">
+      Personal analytics & insights from your attendance records
+    </p>
+  </div>
 
-    <div class="bg-white border p-6">
-      <p class="text-xs uppercase text-slate-400">Late Arrival Days</p>
-      <p class="text-2xl font-black text-orange-600">{{ metrics.late_arrival_days }}</p>
-    </div>
+  <!-- PRIMARY METRICS (BI Layer) -->
+  <div>
+    <h2 class="text-xl font-black uppercase tracking-wider text-slate-900 mb-6">Your Attendance Profile</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-    <div class="bg-white border p-6">
-      <p class="text-xs uppercase text-slate-400">Absent Days</p>
-      <p class="text-2xl font-black text-red-600">{{ metrics.absent_days }}</p>
-    </div>
+      <!-- Average Login Hour -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Your Average Login</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.average_login_hour|int }}:00</p>
+        <p class="text-xs text-slate-500 mt-2">Your typical entry time</p>
+      </div>
 
-    <div class="bg-white border p-6">
-      <p class="text-xs uppercase text-slate-400">Average Work Hours</p>
-      <p class="text-2xl font-black">{{ metrics.average_work_hours }}</p>
-    </div>
+      <!-- Late Arrival Frequency -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Late Arrivals</p>
+        <p class="text-4xl font-black text-orange-600">{{ metrics.late_arrival_days }}</p>
+        <p class="text-xs text-slate-500 mt-2">Days you came after 10:00</p>
+      </div>
 
-    <div class="bg-white border p-6">
-      <p class="text-xs uppercase text-slate-400">Total Days Analyzed</p>
-      <p class="text-2xl font-black">{{ metrics.total_days_analyzed }}</p>
-    </div>
+      <!-- Absent Days -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Absent Days</p>
+        <p class="text-4xl font-black text-red-600">{{ metrics.absent_days }}</p>
+        <p class="text-xs text-slate-500 mt-2">Days marked absent</p>
+      </div>
 
-    <div class="bg-white border p-6">
-      <p class="text-xs uppercase text-slate-400">Anomalies Detected</p>
-      <p class="text-2xl font-black {% if anomalies|length > 0 %}text-red-600{% else %}text-green-600{% endif %}">
-        {{ anomalies|length }}
-      </p>
+      <!-- Average Work Hours -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Your Avg Hours</p>
+        <p class="text-4xl font-black text-blue-600">{{ metrics.average_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Daily average productivity</p>
+      </div>
+
+      <!-- Work Hours Range -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Min Hours</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.min_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Your shortest day</p>
+      </div>
+
+      <!-- Work Hours Max -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Max Hours</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.max_work_hours }}</p>
+        <p class="text-xs text-slate-500 mt-2">Your longest day</p>
+      </div>
+
+      <!-- Total Days Analyzed -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Days Analyzed</p>
+        <p class="text-4xl font-black text-slate-900">{{ metrics.total_days_analyzed }}</p>
+        <p class="text-xs text-slate-500 mt-2">Record count</p>
+      </div>
+
+      <!-- Absence Trend -->
+      <div class="border border-slate-200 bg-white p-6 rounded-lg hover:shadow-md transition">
+        <p class="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-3">Absence Trend</p>
+        <p class="text-lg font-bold {% if metrics.absence_trend == 'increasing' %}text-red-600{% elif metrics.absence_trend == 'decreasing' %}text-green-600{% else %}text-slate-600{% endif %}">
+          {% if metrics.absence_trend == 'increasing' %} ↑ Increasing {% elif metrics.absence_trend == 'decreasing' %} ↓ Decreasing {% else %} → Stable {% endif %}
+        </p>
+        <p class="text-xs text-slate-500 mt-2">Month-over-month</p>
+      </div>
+
     </div>
   </div>
 
-  <!-- ANOMALIES TABLE -->
-  <div class="bg-white border p-6">
-    <h2 class="text-lg font-bold mb-4">Detected Anomalies</h2>
+  <!-- ANOMALIES & ALERTS 🔥 -->
+  <div>
+    <h2 class="text-xl font-black uppercase tracking-wider text-slate-900 mb-6">
+      Your Anomalies & Alerts
+    </h2>
 
     {% if anomalies %}
-    <table class="w-full text-sm border-collapse">
-      <thead>
-        <tr class="border-b">
-          <th class="text-left p-2">Employee ID</th>
-          <th class="text-left p-2">Date</th>
-          <th class="text-left p-2">Work Hours</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in anomalies %}
-        <tr class="border-b">
-          <td class="p-2">{{ a.employee_id }}</td>
-          <td class="p-2">{{ a.date }}</td>
-          <td class="p-2 text-red-600 font-bold">{{ a.duration }}</td>
-        </tr>
+      <div class="space-y-4">
+        {% for anomaly in anomalies %}
+        <div class="border-l-4 {% if anomaly.type == 'unusual_hours' %}border-red-600 bg-red-50{% elif anomaly.type == 'late_arrival' %}border-orange-600 bg-orange-50{% elif anomaly.type == 'absence_spike' %}border-red-700 bg-red-50{% endif %} p-5 rounded-r-lg">
+          <div class="flex items-start gap-4">
+            <div class="text-2xl">
+              {% if anomaly.type == 'unusual_hours' %}⏱️{% elif anomaly.type == 'late_arrival' %}⏰{% elif anomaly.type == 'absence_spike' %}📊{% endif %}
+            </div>
+            <div class="flex-1">
+              <p class="font-bold text-slate-900">{{ anomaly.reason }}</p>
+              <div class="mt-2 flex gap-4 text-xs text-slate-600">
+                <span><strong>Date:</strong> {{ anomaly.date }}</span>
+                {% if anomaly.type == 'unusual_hours' %}
+                  <span><strong>Hours:</strong> {{ anomaly.value }}h</span>
+                {% elif anomaly.type == 'late_arrival' %}
+                  <span><strong>Login:</strong> {{ anomaly.value }}:00</span>
+                {% elif anomaly.type == 'absence_spike' %}
+                  <span><strong>Absences:</strong> {{ anomaly.value }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
+      </div>
     {% else %}
-      <p class="text-slate-400 italic">No abnormal attendance patterns detected.</p>
+      <div class="border border-dashed border-slate-300 bg-slate-50 p-8 rounded-lg text-center">
+        <p class="text-slate-500 font-medium">✓ No anomalies detected</p>
+        <p class="text-xs text-slate-400 mt-1">Your attendance patterns are healthy & consistent</p>
+      </div>
     {% endif %}
   </div>
 
 </div>
+
+<style>
+  * { transition: all 0.2s ease; }
+</style>
+
 {% endblock %}
