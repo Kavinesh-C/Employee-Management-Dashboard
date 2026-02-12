@@ -44,6 +44,7 @@
       left: 0; top: 0; z-index: 100;
       display: flex;
       flex-direction: column;
+      overflow-y: auto;
     }
 
     .main-canvas {
@@ -205,6 +206,7 @@
         <a href="/manager/manage_teams" class="nav-link {% if request.path.startswith('/manager/manage_teams') or request.path.startswith('/manager/team') %}active{% endif %}">
           <i class="bi bi-people"></i> Manage Teams
         </a>
+        {# Leader Dashboard link removed from sidebar #}
         {% endif %}
         <a href="/employee/attendance" class="nav-link">
           <i class="bi bi-stopwatch"></i> Attendance
@@ -310,11 +312,12 @@
   <div id="notificationPanel" class="notification-panel hidden absolute right-0 mt-3 rounded-lg overflow-hidden">
     <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
       <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Notifications</span>
-      <button id="markAllRead" class="text-[10px] font-black uppercase tracking-widest text-blue-600">Mark all</button>
+      <button id="markAllRead" class="text-[10px] font-black uppercase tracking-widest text-blue-600">Mark all as read</button>
     </div>
     <div id="notificationList" class="divide-y"></div>
-    <div id="notificationLoadMore" class="px-4 py-3 border-t border-slate-100 hidden">
-      <button class="w-full text-[10px] font-black uppercase tracking-widest text-blue-600">Load more</button>
+    <div id="notificationLoadMore" class="px-4 py-3 border-t border-slate-100">
+      <button id="notificationLoadMoreBtn" class="w-full text-[10px] font-black uppercase tracking-widest text-blue-600">Load more</button>
+      <div id="notificationLoadMoreStatus" class="hidden mt-2 text-center text-[10px] font-bold uppercase tracking-widest text-slate-400">No more notification</div>
     </div>
     <div id="notificationEmpty" class="px-4 py-6 text-center text-xs text-slate-400 hidden">No notifications</div>
   </div>
@@ -565,18 +568,28 @@ updateChatBadge();
 
 const currentUserRole = "{{ user.role }}";
 let notificationOffset = 0;
-const notificationLimit = 10;
+const notificationLimit = 4;
 let notificationTotal = 0;
+let notificationHasMore = false;
+let notificationLoading = false;
 
 async function fetchNotifications(reset = false) {
   try {
+    if (notificationLoading) return;
+    notificationLoading = true;
     if (reset) {
       notificationOffset = 0;
     }
     const res = await fetch(`/api/notifications?offset=${notificationOffset}&limit=${notificationLimit}`);
     if (!res.ok) return;
     const data = await res.json();
-    notificationTotal = data.total || 0;
+    const fetchedItems = data.items || [];
+    const fetchedCount = fetchedItems.length;
+    notificationHasMore = !!data.has_more || fetchedCount === notificationLimit;
+    notificationTotal = Number.isFinite(data.total)
+      ? data.total
+      : Math.max(notificationTotal, notificationOffset + fetchedCount + (notificationHasMore ? 1 : 0));
+    notificationOffset = Number.isInteger(data.next_offset) ? data.next_offset : (notificationOffset + fetchedCount);
     const badge = document.getElementById("notificationBadge");
     if (badge) {
       if (data.unread_count > 0) {
@@ -586,9 +599,11 @@ async function fetchNotifications(reset = false) {
         badge.classList.add("hidden");
       }
     }
-    renderNotifications(data.items || [], reset);
+    renderNotifications(fetchedItems, reset);
   } catch (err) {
     console.error("Notification fetch failed", err);
+  } finally {
+    notificationLoading = false;
   }
 }
 
@@ -596,6 +611,7 @@ function renderNotifications(items, reset) {
   const list = document.getElementById("notificationList");
   const empty = document.getElementById("notificationEmpty");
   const loadMoreWrap = document.getElementById("notificationLoadMore");
+  const loadMoreStatus = document.getElementById("notificationLoadMoreStatus");
   const panel = document.getElementById("notificationPanel");
   if (!list || !empty) return;
   if (reset) {
@@ -604,14 +620,18 @@ function renderNotifications(items, reset) {
 
   if (!items.length && list.children.length === 0) {
     empty.classList.remove("hidden");
-    if (loadMoreWrap) loadMoreWrap.classList.add("hidden");
+    if (loadMoreWrap) loadMoreWrap.classList.remove("hidden");
+    if (loadMoreStatus) loadMoreStatus.classList.add("hidden");
     return;
   }
 
   empty.classList.add("hidden");
+  const existingIds = new Set(Array.from(list.querySelectorAll("[data-notification-id]")).map(el => String(el.dataset.notificationId)));
   items.forEach(item => {
+    if (existingIds.has(String(item.id))) return;
     const row = document.createElement("div");
     row.className = "notification-item px-4 py-3 flex gap-3 items-start";
+    row.dataset.notificationId = String(item.id);
     const isMeeting = (item.notif_type || '').toLowerCase() === 'meeting';
     if (item.link || isMeeting) {
       row.classList.add('cursor-pointer');
@@ -702,8 +722,16 @@ function renderNotifications(items, reset) {
   });
 
   if (loadMoreWrap) {
-    const canLoadMore = list.children.length < notificationTotal;
-    loadMoreWrap.classList.toggle("hidden", !canLoadMore);
+    loadMoreWrap.classList.remove("hidden");
+  }
+  if (loadMoreStatus) {
+    const hasAnyItems = list.children.length > 0;
+    const canLoadMore = notificationHasMore || list.children.length < notificationTotal;
+    if (hasAnyItems && !canLoadMore) {
+      loadMoreStatus.classList.remove("hidden");
+    } else {
+      loadMoreStatus.classList.add("hidden");
+    }
   }
 }
 
@@ -712,14 +740,14 @@ async function markNotificationRead(id) {
   const fd = new FormData();
   fd.append("notification_id", String(id));
   await fetch("/api/notifications/read", { method: "POST", body: fd });
-  fetchNotifications();
+  fetchNotifications(true);
 }
 
 async function markAllNotificationsRead() {
   const fd = new FormData();
   fd.append("mark_all", "true");
   await fetch("/api/notifications/read", { method: "POST", body: fd });
-  fetchNotifications();
+  fetchNotifications(true);
 }
 
 document.addEventListener("DOMContentLoaded", function() {
@@ -746,11 +774,18 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   if (loadMoreWrap) {
-    const loadBtn = loadMoreWrap.querySelector("button");
+    const loadBtn = document.getElementById("notificationLoadMoreBtn");
+    const loadMoreStatus = document.getElementById("notificationLoadMoreStatus");
     if (loadBtn) {
       loadBtn.addEventListener("click", function(e) {
         e.preventDefault();
-        notificationOffset += notificationLimit;
+        const list = document.getElementById("notificationList");
+        const canLoadMore = notificationHasMore || ((list && list.children.length < notificationTotal) || false);
+        if (!canLoadMore) {
+          if (loadMoreStatus) loadMoreStatus.classList.remove("hidden");
+          return;
+        }
+        if (loadMoreStatus) loadMoreStatus.classList.add("hidden");
         fetchNotifications(false);
       });
     }

@@ -21,7 +21,7 @@ from .models import (
 )
 from .auth import verify_password, hash_password
 from .email_service import send_leave_requested_email
-from .app_context import templates, get_current_user
+from .app_context import templates, get_current_user, create_notification
 from .payroll_utils import calculate_monthly_payroll
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -62,6 +62,51 @@ def register_employee_routes(app):
             assigned_project_ids = [pid for pid in assigned_project_ids if pid != team.project_id]
         if assigned_project_ids:
             additional_projects = db.query(Project).filter(Project.id.in_(assigned_project_ids)).all()
+        # Gather all tasks for accurate pending count
+        personal_tasks = db.query(Task).filter(Task.user_id == user.employee_id).all()
+        # Removed redundant import of models to fix UnboundLocalError for Team
+        # Project tasks assigned to this user
+        project_tasks = (
+            db.query(ProjectTask, ProjectTaskAssignee)
+            .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+            .filter(ProjectTaskAssignee.employee_id == user.employee_id)
+            .all()
+        )
+        # Team and additional projects
+        assigned_project_ids = set(
+            row[0]
+            for row in db.query(ProjectAssignment.project_id)
+            .filter(ProjectAssignment.employee_id == user.employee_id)
+            .all()
+        )
+        if team and team.project_id:
+            assigned_project_ids.add(team.project_id)
+        projects = []
+        if assigned_project_ids:
+            projects = db.query(Project).filter(Project.id.in_(assigned_project_ids)).all()
+        all_project_tasks = []
+        if projects:
+            project_ids_list = [p.id for p in projects]
+            all_project_tasks = (
+                db.query(ProjectTask, ProjectTaskAssignee)
+                .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+                .filter(ProjectTask.project_id.in_(project_ids_list), ProjectTaskAssignee.employee_id == user.employee_id)
+                .all()
+            )
+        # Merge all tasks and count pending
+        pending_tasks_count = sum(1 for t in personal_tasks if t.status in ["pending", "in-progress"])
+        seen_ids = set()
+        for pt, pa in project_tasks:
+            if pa.status in ["pending", "in-progress"] and pt.id not in seen_ids:
+                pending_tasks_count += 1
+                seen_ids.add(pt.id)
+        for pt, pa in all_project_tasks:
+            if pa.status in ["pending", "in-progress"] and pt.id not in seen_ids:
+                pending_tasks_count += 1
+                seen_ids.add(pt.id)
+        # Additional projects count
+        additional_projects_count = len(additional_projects) if additional_projects else 0
+        # For dashboard display, keep the original 5 recent tasks for preview
         tasks = db.query(Task).filter(
             Task.user_id == user.employee_id
         ).order_by(Task.created_at.desc()).limit(5).all()
@@ -90,23 +135,25 @@ def register_employee_routes(app):
         # Friendly date label for header
         current_date_display = datetime.datetime.utcnow().strftime("%b %d, %Y")
         return templates.TemplateResponse("employee/employee_dashboard.html",
-                                          {
-                                              "request": request,
-                                              "user": user,
-                                              "total_hours": round(total_hours, 2),
-                                              "team": team,
-                                              "team_leader": team_leader,
-                                              "team_project": team_project,
-                                              "additional_projects": additional_projects,
-                                              "tasks": tasks,
-                                              "current_year": 2026,
-                                              "leave_balance": leave_balance,
-                                              "current_status": current_status,
-                                              "current_location": current_location,
-                                              "current_checkin": current_checkin,
-                                              "current_date_display": current_date_display
-                                          }
-                                          )
+            {
+                "request": request,
+                "user": user,
+                "total_hours": round(total_hours, 2),
+                "team": team,
+                "team_leader": team_leader,
+                "team_project": team_project,
+                "additional_projects": additional_projects,
+                "additional_projects_count": additional_projects_count,
+                "pending_tasks_count": pending_tasks_count,
+                "tasks": tasks,
+                "current_year": 2026,
+                "leave_balance": leave_balance,
+                "current_status": current_status,
+                "current_location": current_location,
+                "current_checkin": current_checkin,
+                "current_date_display": current_date_display
+            }
+        )
 
     @app.get("/employee/chat", response_class=HTMLResponse)
     async def employee_chat(
@@ -272,9 +319,27 @@ def register_employee_routes(app):
         if not is_assigned:
             raise HTTPException(status_code=403, detail="Not assigned to this task")
 
-        task.status = "completed"
-        task.completed_at = datetime.datetime.utcnow()
+
+
+        # Per-assignee completion
+        is_assigned.status = "completed"
+        is_assigned.completed_at = datetime.datetime.utcnow()
         db.commit()
+
+        # Notify the leader (and optionally manager) that this user completed the task
+        # Find the leader for this project (via team)
+        team = db.query(Team).filter(Team.project_id == task.project_id).first()
+        if team and team.leader_id:
+            leader = db.query(User).filter(User.id == team.leader_id).first()
+            if leader:
+                create_notification(
+                    db,
+                    user_id=leader.id,
+                    title="Task Completed",
+                    message=f"{user.name} completed the task '{task.title}'",
+                    notif_type="task_completed",
+                    link=f"/leader/project/{task.project_id}"
+                )
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return {"ok": True, "task_id": task_id, "status": task.status}
@@ -286,13 +351,89 @@ def register_employee_routes(app):
                                   user: User = Depends(get_current_user),
                                   db: Session = Depends(get_db),
                                   filter: str = None):
+        # Personal tasks
         task_query = db.query(Task).filter(Task.user_id == user.employee_id)
         if filter in ["pending", "in-progress", "done"]:
             task_query = task_query.filter(Task.status == filter)
-        tasks = task_query.order_by(Task.id.desc()).all()
-        pending = db.query(Task).filter(Task.user_id == user.employee_id, Task.status == "pending").count()
-        in_progress = db.query(Task).filter(Task.user_id == user.employee_id, Task.status == "in-progress").count()
-        done = db.query(Task).filter(Task.user_id == user.employee_id, Task.status == "done").count()
+        personal_tasks = task_query.order_by(Task.id.desc()).all()
+
+        # Project tasks assigned to this user (ProjectTaskAssignee)
+        from .models import ProjectTask, ProjectTaskAssignee, Project, ProjectAssignment, Team
+        project_task_query = (
+            db.query(ProjectTask, ProjectTaskAssignee)
+            .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+            .filter(ProjectTaskAssignee.employee_id == user.employee_id)
+        )
+        if filter in ["pending", "in-progress", "done", "completed"]:
+            status_map = {"pending": "pending", "in-progress": "in-progress", "done": "completed", "completed": "completed"}
+            project_task_query = project_task_query.filter(ProjectTaskAssignee.status == status_map.get(filter, "pending"))
+        project_tasks = project_task_query.order_by(ProjectTask.id.desc()).all()
+
+        # Team and additional projects
+        assigned_project_ids = set(
+            row[0]
+            for row in db.query(ProjectAssignment.project_id)
+            .filter(ProjectAssignment.employee_id == user.employee_id)
+            .all()
+        )
+        if user.current_team_id:
+            team = db.query(Team).filter(Team.id == user.current_team_id).first()
+            if team and team.project_id:
+                assigned_project_ids.add(team.project_id)
+        projects = []
+        if assigned_project_ids:
+            projects = db.query(Project).filter(Project.id.in_(assigned_project_ids)).all()
+
+        # All project tasks from these projects assigned to this user
+        all_project_tasks = []
+        if projects:
+            project_ids_list = [p.id for p in projects]
+            all_project_tasks = (
+                db.query(ProjectTask, ProjectTaskAssignee)
+                .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+                .filter(ProjectTask.project_id.in_(project_ids_list), ProjectTaskAssignee.employee_id == user.employee_id)
+                .order_by(ProjectTask.id.desc())
+                .all()
+            )
+
+        # Merge all: personal, project, and all project tasks from team/additional projects
+        tasks = [
+            {
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "status": t.status,
+                "type": "personal"
+            } for t in personal_tasks
+        ]
+        # Add project tasks (directly assigned)
+        tasks += [
+            {
+                "id": pt.id,
+                "title": pt.title,
+                "description": pt.description,
+                "status": pa.status,
+                "type": "project"
+            } for pt, pa in project_tasks
+        ]
+        # Add all project tasks from team/additional projects (avoid duplicates)
+        existing_ids = {t["id"] for t in tasks}
+        for pt, pa in all_project_tasks:
+            if pt.id not in existing_ids:
+                tasks.append({
+                    "id": pt.id,
+                    "title": pt.title,
+                    "description": pt.description,
+                    "status": pa.status,
+                    "type": "project"
+                })
+                existing_ids.add(pt.id)
+
+        # For stats, count both types
+        pending = sum(1 for t in tasks if t["status"] in ["pending"])
+        in_progress = sum(1 for t in tasks if t["status"] in ["in-progress"])
+        done = sum(1 for t in tasks if t["status"] in ["done", "completed"])
+
         return templates.TemplateResponse("employee/employee_tasks.html",
                                           {"request": request, "user": user,
                                            "tasks": tasks,

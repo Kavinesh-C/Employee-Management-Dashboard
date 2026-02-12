@@ -150,13 +150,17 @@
     </div>
 
     <div class="space-y-4">
-        {% for t in tasks %}
-        <div class="task-card glass p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 
-                    {% if t.priority == 'high' %} border-l-red-500 {% elif t.priority == 'medium' %} border-l-blue-500 {% else %} border-l-slate-300 {% endif %}">
+                {% for t in tasks %}
+                <div class="task-card glass p-6 rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-l-4
+                        {% if t.type == 'project' %} border-l-purple-500 cursor-pointer hover:bg-purple-50 {% elif t.priority == 'high' %} border-l-red-500 {% elif t.priority == 'medium' %} border-l-blue-500 {% else %} border-l-slate-300 {% endif %}"
+                        {% if t.type == 'project' %} onclick="window.location.href='/employee/team#project-task-{{ t.id }}'" {% endif %}>
 
-            <div class="flex-1 space-y-2">
-                <h4 class="font-extrabold text-slate-900 text-xl tracking-tight">{{ t.title }}</h4>
-                <p class="text-slate-500 text-sm font-medium max-w-2xl">{{ t.description }}</p>
+                        <div class="flex-1 space-y-2">
+                                <h4 class="font-extrabold text-slate-900 text-xl tracking-tight">{{ t.title }}</h4>
+                                <p class="text-slate-500 text-sm font-medium max-w-2xl">{{ t.description }}</p>
+                                {% if t.type == 'project' %}
+                                    <span class="inline-block text-[10px] px-2 py-1 rounded-full badge-purple font-bold uppercase">Project Task</span>
+                                {% endif %}
 
                 <div class="flex gap-2 pt-2">
                     {% if t.priority == 'high' %}
@@ -211,27 +215,32 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  const canvas = document.getElementById('taskChart');
-  if (!canvas) return;
+    const canvas = document.getElementById('taskChart');
+    if (!canvas) return;
 
-  const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
+    const taskData = [
+        parseInt('{{ pending|default(0) }}', 10),
+        parseInt('{{ in_progress|default(0) }}', 10),
+        parseInt('{{ done|default(0) }}', 10)
+    ];
 
-  new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: ['Pending', 'In-Progress', 'Completed'],
-      datasets: [{
-        data: [{{ pending }}, {{ in_progress }}, {{ done }}],
-        backgroundColor: ['#f59e0b', '#3b82f6', '#10b981'],
-        borderWidth: 0
-      }]
-    },
-    options: {
-      cutout: '80%',
-      responsive: false,
-      animation: false   // 🔥 IMPORTANT
-    }
-  });
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'In-Progress', 'Completed'],
+            datasets: [{
+                data: taskData,
+                backgroundColor: ['#f59e0b', '#3b82f6', '#10b981'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '80%',
+            responsive: false,
+            animation: false // 🔥 IMPORTANT
+        }
+    });
 });
 </script>
 

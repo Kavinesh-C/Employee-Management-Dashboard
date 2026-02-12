@@ -1,0 +1,37 @@
+<div id="editTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
+  <div class="bg-white w-full max-w-lg p-8 border border-slate-200 relative max-h-[90vh] overflow-y-auto">
+    <div class="h-2 w-full bg-blue-700 absolute top-0 left-0"></div>
+    <button onclick="closeEditTaskModal()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-900">
+      <i class="bi bi-x-lg text-2xl"></i>
+    </button>
+    <h3 class="text-2xl font-black uppercase tracking-tighter text-slate-900 mb-2">Edit Task</h3>
+    <form id="editTaskForm" method="POST">
+      <input type="hidden" name="employee_id" id="editTaskEmployeeId">
+      <input type="hidden" name="task_idx" id="editTaskIdx">
+      <div class="mb-4">
+        <label class="label-mono mb-2 block">Title</label>
+        <input type="text" name="title" id="editTaskTitle" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-black uppercase outline-none focus:border-blue-700" required>
+      </div>
+      <div class="mb-4">
+        <label class="label-mono mb-2 block">Description</label>
+        <textarea name="description" id="editTaskDescription" rows="3" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-medium outline-none focus:border-blue-700"></textarea>
+      </div>
+      <div class="mb-4">
+        <label class="label-mono mb-2 block">Status</label>
+        <select name="status" id="editTaskStatus" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-black uppercase outline-none focus:border-blue-700">
+          <option value="pending">Pending</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="mb-4">
+        <label class="label-mono mb-2 block">Due Date</label>
+        <input type="date" name="due_date" id="editTaskDueDate" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-black uppercase outline-none focus:border-blue-700">
+      </div>
+      <div class="flex justify-end gap-6 pt-2">
+        <button type="button" onclick="closeEditTaskModal()" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Cancel</button>
+        <button type="submit" class="px-10 py-4 bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-800 transition-all">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>

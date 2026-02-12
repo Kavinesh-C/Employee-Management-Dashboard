@@ -166,6 +166,19 @@ body {
             </span>
           </div>
         </div>
+        <div class="mt-4">
+          <h4 class="font-semibold text-xs mb-1">Assigned Tasks:</h4>
+          <ul class="list-disc ml-5">
+            {% for task in member.tasks %}
+            <li>
+              <span class="font-medium">{{ task.title }}</span>
+              <span class="text-xs text-gray-400">({{ task.status }})</span>
+            </li>
+            {% else %}
+            <li class="text-gray-400">No tasks assigned</li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -187,8 +200,9 @@ body {
 
 </div>
 
+
 <div id="memberTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-  <div class="bg-white w-full max-w-xl p-10 border border-slate-200 relative">
+  <div class="bg-white w-full max-w-2xl p-10 border border-slate-200 relative max-h-[90vh] overflow-y-auto">
     <div class="h-2 w-full bg-slate-900 absolute top-0 left-0"></div>
     <button onclick="closeMemberTaskModal()" class="absolute top-6 right-6 text-slate-300 hover:text-slate-900">
       <i class="bi bi-x-lg text-2xl"></i>
@@ -197,6 +211,10 @@ body {
     <h3 class="text-2xl font-black uppercase tracking-tighter text-slate-900 mb-2">Assign Project Task</h3>
     <p id="memberTaskMeta" class="label-mono mb-2"></p>
     <p id="memberTaskProject" class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6"></p>
+
+    <div id="memberTaskList" class="mb-8 max-h-80 overflow-y-auto pr-2">
+      <!-- Populated by JS -->
+    </div>
 
     <form action="/manager/team_tasks/create" method="POST" class="space-y-6" id="memberTaskForm">
       <input type="hidden" name="team_id" id="memberTaskTeamId">
@@ -223,7 +241,7 @@ body {
         </div>
         <div>
           <label class="label-mono mb-2 block">Due Date</label>
-          <input type="date" name="due_date" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-black uppercase outline-none focus:border-slate-900">
+          <input type="date" id="memberTaskDueDate" name="due_date" class="w-full bg-slate-50 border border-slate-200 px-4 py-3 text-xs font-black uppercase outline-none focus:border-slate-900">
         </div>
       </div>
 
@@ -239,7 +257,34 @@ body {
   </div>
 </div>
 
+{% include 'admin/edit_task_modal.html' %}
 <script>
+  function getTodayIsoDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Real member tasks data from backend
+  const memberTasksData = {
+    {% for member in members %}
+      '{{ member.employee_id }}': [
+        {% for task in member.tasks %}
+        {
+          title: {{ task.title|tojson }},
+          status: {{ task.status|tojson }},
+          description: {{ task.description|tojson }},
+          assigned_at: {{ task.assigned_at|tojson }},
+          completed_at: {{ task.completed_at|tojson }},
+          due_date: {{ task.due_date|tojson }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]{% if not loop.last %},{% endif %}
+    {% endfor %}
+  };
+
   function openMemberTaskModal(card) {
     const teamId = card.getAttribute('data-team-id') || '';
     const projectId = card.getAttribute('data-team-project-id') || '';
@@ -254,8 +299,38 @@ body {
       ? `Project: ${projectName}`
       : 'Project: Not linked';
 
+    // Populate the task list in the modal
+    const taskListDiv = document.getElementById('memberTaskList');
+    const tasks = memberTasksData[employeeId] || [];
+    if (tasks.length === 0) {
+      taskListDiv.innerHTML = '<div class="text-gray-400 text-sm">No tasks assigned</div>';
+    } else {
+      let html = '<div class="mb-2 font-bold text-slate-900">Current Tasks</div>';
+      html += '<div class="space-y-3">';
+      tasks.forEach((task, idx) => {
+        html += `<div class=\"border border-slate-200 rounded p-3 bg-slate-50\">\n`
+          + `<div class=\"font-bold text-xs mb-1\">${task.title}</div>\n`
+          + `<div class=\"text-xs text-slate-500 mb-1\">Status: <span class=\"font-semibold\">${task.status}</span></div>\n`
+          + `<div class=\"text-xs text-slate-500 mb-1\">Description: <span class=\"font-normal\">${task.description || '-'} </span></div>\n`
+          + `<div class=\"text-xs text-slate-500 mb-1\">Assigned: <span class=\"font-normal\">${task.assigned_at || '-'} </span></div>\n`
+          + `<div class=\"text-xs text-slate-500 mb-1\">Completed: <span class=\"font-normal\">${task.completed_at || '-'} </span></div>\n`
+          + `<div class=\"text-xs text-slate-500 mb-1\">Due: <span class=\"font-normal\">${task.due_date || '-'} </span></div>\n`
+          + `<div class=\"flex gap-3 mt-2\">\n`
+          + `<button class=\"px-3 py-1 text-xs font-bold rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition\" onclick=\"editTask('${task.title}', ${idx}, '${task.status}')\">Edit</button>\n`
+          + `<button class=\"px-3 py-1 text-xs font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition\" onclick=\"deleteTask('${task.title}', ${idx}, '${task.status}')\">Delete</button>\n`
+          + `</div>\n`
+        + `</div>`;
+      });
+      html += '</div>';
+      taskListDiv.innerHTML = html;
+    }
+
     const projectNote = document.getElementById('memberTaskProjectNote');
     const submitBtn = document.getElementById('memberTaskSubmit');
+    const dueDateInput = document.getElementById('memberTaskDueDate');
+    if (dueDateInput) {
+      dueDateInput.setAttribute('min', getTodayIsoDate());
+    }
     if (!projectId) {
       projectNote.classList.remove('hidden');
       submitBtn.disabled = true;
@@ -267,6 +342,90 @@ body {
     }
 
     document.getElementById('memberTaskModal').classList.remove('hidden');
+  }
+
+
+  function editTask(title, idx, status) {
+    // Find the employeeId from the open modal context
+    const employeeId = document.getElementById('memberTaskAssignee').value;
+    const task = (memberTasksData[employeeId] || [])[idx];
+    if (!task) return;
+    document.getElementById('editTaskEmployeeId').value = employeeId;
+    document.getElementById('editTaskIdx').value = idx;
+    document.getElementById('editTaskTitle').value = task.title || '';
+    document.getElementById('editTaskDescription').value = task.description || '';
+    document.getElementById('editTaskStatus').value = task.status || 'pending';
+    const editTaskDueDate = document.getElementById('editTaskDueDate');
+    editTaskDueDate.setAttribute('min', getTodayIsoDate());
+    editTaskDueDate.value = task.due_date || '';
+    document.getElementById('editTaskModal').classList.remove('hidden');
+  }
+
+  function closeEditTaskModal() {
+    document.getElementById('editTaskModal').classList.add('hidden');
+  }
+
+  // Handle edit form submit (AJAX)
+  document.addEventListener('DOMContentLoaded', function() {
+    const memberTaskDueDate = document.getElementById('memberTaskDueDate');
+    if (memberTaskDueDate) {
+      memberTaskDueDate.setAttribute('min', getTodayIsoDate());
+    }
+    const memberTaskForm = document.getElementById('memberTaskForm');
+    if (memberTaskForm) {
+      memberTaskForm.addEventListener('submit', function(e) {
+        if (!memberTaskDueDate || !memberTaskDueDate.value) return;
+        if (memberTaskDueDate.value < getTodayIsoDate()) {
+          e.preventDefault();
+          alert('Past date not allowed.');
+        }
+      });
+    }
+
+    const form = document.getElementById('editTaskForm');
+    const editTaskDueDate = document.getElementById('editTaskDueDate');
+    if (editTaskDueDate) {
+      editTaskDueDate.setAttribute('min', getTodayIsoDate());
+    }
+    if (form) {
+      form.onsubmit = async function(e) {
+        e.preventDefault();
+        if (editTaskDueDate && editTaskDueDate.value && editTaskDueDate.value < getTodayIsoDate()) {
+          alert('Past date not allowed.');
+          return;
+        }
+        const employeeId = document.getElementById('editTaskEmployeeId').value;
+        const idx = document.getElementById('editTaskIdx').value;
+        const payload = {
+          employee_id: employeeId,
+          idx: idx,
+          title: document.getElementById('editTaskTitle').value,
+          description: document.getElementById('editTaskDescription').value,
+          status: document.getElementById('editTaskStatus').value,
+          due_date: document.getElementById('editTaskDueDate').value
+        };
+        // Send to backend (implement /manager/update_task endpoint)
+        const resp = await fetch('/manager/update_task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+          alert('Task updated!');
+          closeEditTaskModal();
+          location.reload();
+        } else {
+          alert('Failed to update task.');
+        }
+      }
+    }
+  });
+
+  function deleteTask(title, idx, status) {
+    if (confirm('Are you sure you want to delete task: ' + title + '?')) {
+      alert('Delete functionality for task: ' + title + ' (index: ' + idx + ', status: ' + status + ')');
+      // Implement delete logic here
+    }
   }
 
   function closeMemberTaskModal() {

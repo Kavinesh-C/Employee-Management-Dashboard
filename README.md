@@ -18,6 +18,7 @@ A comprehensive **RFID-based attendance tracking system** built with **FastAPI**
   * [Admin Functions](#admin-functions)
   * [RFID Integration (ESP32/Microcontroller)](#rfid-integration-esp32microcontroller)
 * [API Endpoints](#api-endpoints)
+* [Project Environment & Security](#project-environment-security)
 * [Database Schema](#database-schema)
 * [Hosting on Your IP / Network Access](#hosting-on-your-ip--network-access)
 * [Configuration & Environment Variables](#configuration--environment-variables)
@@ -57,6 +58,25 @@ A comprehensive **RFID-based attendance tracking system** built with **FastAPI**
 * Python 3.8+
 * `pip` (Python package manager)
 * Git (optional, for cloning)
+
+---
+
+
+
+**Security Notes:**
+- Never commit your `.env` file or secrets to source control.
+- Always use strong, unique values for `SECRET_KEY` and `ADMIN_PASSWORD`.
+- For production, run the app with HTTPS enabled (see instructions above).
+- To enable HTTPS, provide valid SSL certificate and key files:
+  - `--ssl-keyfile=path/to/key.pem`
+  - `--ssl-certfile=path/to/cert.pem`
+- If using SMTP for email, set the SMTP variables as shown above.
+
+**Error Handling:**
+- The app will raise an error if `DATABASE_URL` is missing from your `.env` file.
+
+**Logging:**
+- Request duration and errors are logged for debugging and monitoring.
 
 ---
 
@@ -102,7 +122,13 @@ DATABASE_URL=" <-- your database url --> "
 
 ```bash
 # Start with auto-reload for development
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --http httptools
+```
+Or use this 
+
+```bash
+# Start with auto-reload for development
+uvicorn app.main:app --reload --http httptools
 ```
 
 Open your browser and go to: `http://127.0.0.1:8000`
@@ -110,7 +136,19 @@ Open your browser and go to: `http://127.0.0.1:8000`
 For network access on your LAN:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --http httptools
+
+To run with HTTPS (SSL/TLS):
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000 \
+  --ssl-keyfile=path/to/ssl/key.pem \
+  --ssl-certfile=path/to/ssl/cert.pem
+```
+
+Replace `path/to/ssl/key.pem` and `path/to/ssl/cert.pem` with your actual SSL certificate and key file paths.
+
+*Note: --http httptools is not needed for HTTPS. Remove it when using SSL options.*
 ```
 
 ---
@@ -364,7 +402,7 @@ Team ─── Leader (User)
 1. Run the app bound to `0.0.0.0`:
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000 --http httptools
 ```
 
 2. Find your machine IP (Linux):

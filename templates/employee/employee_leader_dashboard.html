@@ -1,22 +1,19 @@
-{% extends "common/layout_base.html" %}
 
+{% extends "common/layout_base.html" %}
 {% block content %}
 
 <div class="flex flex-col space-y-8 max-w-6xl mx-auto">
-    
-    <div class="flex justify-between items-end">
+    <div class="flex flex-col md:flex-row md:justify-between md:items-end gap-6">
         <div>
-            <h2 class="text-3xl font-bold text-gray-700 dark:text-gray-200">Leader Dashboard</h2>
+            <h2 class="text-3xl font-black text-indigo-600 dark:text-indigo-300 tracking-tight">Leader Dashboard</h2>
             {% if team %}
-            <p class="opacity-60 mt-1">Leading: <span class="font-bold text-blue-500">{{ team.name }}</span></p>
+            <p class="opacity-70 mt-1 text-lg">Leading: <span class="font-bold text-blue-500">{{ team.name }}</span></p>
             {% else %}
-            <p class="text-red-400 mt-1">You are not assigned to lead any team.</p>
+            <p class="text-red-400 mt-1 text-lg">You are not assigned to lead any team.</p>
             {% endif %}
         </div>
-        
         {% if team and projects %}
-        <button onclick="document.getElementById('assignTaskModal').classList.remove('hidden')" 
-                class="neo-btn px-6 py-2 text-green-600 font-bold">
+        <button onclick="openAssignTaskModal()" class="neo-btn px-8 py-3 text-green-600 font-bold text-lg shadow-lg hover:bg-green-50">
             <i class="fas fa-plus-circle mr-2"></i> Assign Task
         </button>
         {% endif %}
@@ -24,18 +21,21 @@
 
     {% if team %}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
         <div class="neo-card p-6 h-fit">
             <h3 class="text-lg font-bold opacity-80 mb-4 border-b border-gray-500/20 pb-2">My Squad</h3>
             <div class="space-y-3">
                 {% for member in team.members if member.id != user.id %}
                 <div class="neo-inset p-3 flex items-center space-x-3">
-                    <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs">
-                        <i class="fas fa-user"></i>
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-700 flex items-center justify-center text-xl text-white font-bold shadow-md">
+                        {% if member.photo_path %}
+                        <img src="{{ member.photo_path }}" alt="{{ member.name }}" class="w-full h-full rounded-full object-cover" />
+                        {% else %}
+                        {{ member.name[0] }}
+                        {% endif %}
                     </div>
                     <div class="overflow-hidden">
-                        <div class="font-bold text-sm truncate">{{ member.name }}</div>
-                        <div class="text-[10px] opacity-50 truncate">{{ member.employee_id }}</div>
+                        <div class="font-bold text-base truncate">{{ member.name }}</div>
+                        <div class="text-[11px] opacity-60 truncate">ID: {{ member.employee_id }}</div>
                     </div>
                 </div>
                 {% else %}
@@ -45,98 +45,112 @@
         </div>
 
         <div class="lg:col-span-2 space-y-6">
-            <h3 class="text-xl font-bold opacity-80">Department Projects</h3>
-            
-            {% for project in projects %}
-            <div class="neo-card p-6">
-                <div class="flex justify-between items-start mb-4">
-                    <h4 class="text-lg font-bold text-blue-600">{{ project.name }}</h4>
-                    <span class="text-xs opacity-50">Due: {{ project.deadline.strftime('%Y-%m-%d') }}</span>
+            <div class="flex flex-col md:flex-row gap-6 mb-6">
+                <div class="neo-card p-4 flex-1 flex flex-col items-center">
+                    <div class="text-2xl font-bold text-blue-600">{{ team.member_count or team.members|length }}</div>
+                    <div class="text-xs opacity-60 mt-1">Team Members</div>
                 </div>
-                
-                <div class="space-y-2 mt-4">
-                    <div class="text-xs font-bold opacity-40 uppercase mb-2">Assigned Tasks</div>
-                    {% if project.tasks %}
-                        {% for task in project.tasks %}
-                        <div class="flex justify-between items-center p-2 border-b border-gray-500/10 last:border-0">
-                            <div>
-                                <div class="text-sm font-semibold">{{ task.title }}</div>
-                                <div class="text-xs opacity-50">
-                                    {% if task.assignees %}
-                                        Assigned to: 
-                                        {% for a in task.assignees %}
-                                            {{ a.employee.name }}{% if not loop.last %}, {% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        <span class="text-red-400">Unassigned</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full 
-                                {% if task.status == 'completed' %}bg-green-100 text-green-600
-                                {% elif task.status == 'in-progress' %}bg-yellow-100 text-yellow-600
-                                {% else %}bg-gray-200 text-gray-500{% endif %}">
-                                {{ task.status }}
-                            </span>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="text-sm opacity-40 italic">No tasks created yet.</div>
-                    {% endif %}
+                <div class="neo-card p-4 flex-1 flex flex-col items-center">
+                    <div class="text-2xl font-bold text-green-600">{{ projects|length }}</div>
+                    <div class="text-xs opacity-60 mt-1">Active Projects</div>
                 </div>
             </div>
-            {% else %}
+                        <h3 class="text-xl font-bold opacity-80 mb-2">Department Projects</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {% for project in projects %}
+                        <a href="/leader/project/{{ project.id }}" class="block group">
+                        <div class="neo-card p-6 mb-4 shadow-lg border-2 border-blue-200 rounded-xl bg-white dark:bg-slate-900 transition-transform group-hover:scale-[1.03] group-hover:border-blue-400 cursor-pointer">
+                                <div class="flex justify-between items-start mb-4">
+                                        <div>
+                                                <h4 class="text-xl font-bold text-blue-700 mb-1">{{ project.name }}</h4>
+                                                <span class="text-xs font-semibold text-blue-400">Department: {{ project.department }}</span>
+                                        </div>
+                                        <span class="text-xs opacity-70 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold">Due: {{ project.deadline.strftime('%Y-%m-%d') }}</span>
+                                </div>
+                                <!-- No task list here. Only project info. -->
+                        </div>
+                        </a>
+                        {% endfor %}
+            </div>
+            {% if projects|length == 0 %}
             <div class="neo-card p-8 text-center opacity-50">
                 No active projects found in your department.
             </div>
-            {% endfor %}
+            {% endif %}
         </div>
     </div>
     {% endif %}
-
 </div>
 
-<div id="assignTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="neo-card w-full max-w-lg p-8 mx-4">
-        <h3 class="text-xl font-bold mb-6">Assign New Task</h3>
-        <form action="/leader/assign_task" method="POST" class="space-y-4">
-            
-            <div>
-                <label class="text-xs font-bold ml-2 opacity-70">Project</label>
-                <select name="project_id" required class="neo-inset w-full px-4 py-3 outline-none bg-transparent">
-                    {% for p in projects %}
-                        <option value="{{ p.id }}" class="dark:bg-gray-800">{{ p.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div>
-                <label class="text-xs font-bold ml-2 opacity-70">Task Title</label>
-                <input type="text" name="title" required placeholder="e.g. Design Database Schema" class="neo-inset w-full px-4 py-3 outline-none">
-            </div>
-
-            <div>
-                <label class="text-xs font-bold ml-2 opacity-70">Due Date</label>
-                <input type="date" name="deadline" required class="neo-inset w-full px-4 py-3 outline-none">
-            </div>
-
-            <div>
-                <label class="text-xs font-bold ml-2 opacity-70">Assign To</label>
-                <select name="assign_to_employee_id" required class="neo-inset w-full px-4 py-3 outline-none bg-transparent">
-                    {% if team %}
-                        {% for member in team.members if member.id != user.id %}
-                            <option value="{{ member.employee_id }}" class="dark:bg-gray-800">{{ member.name }}</option>
+<div id="assignTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm overflow-y-auto py-6">
+    <div class="w-full max-w-lg mx-4">
+        <div class="bg-white rounded-2xl shadow-2xl border-2 border-blue-200 p-8 relative max-h-[90vh] overflow-y-auto">
+            <button type="button" onclick="document.getElementById('assignTaskModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="text-2xl font-black mb-6 text-blue-700">Assign New Task</h3>
+            <form action="/leader/assign_task" method="POST" class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Project</label>
+                    <select name="project_id" required class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                        {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
                         {% endfor %}
-                    {% endif %}
-                </select>
-            </div>
-
-            <div class="flex justify-end space-x-4 mt-6">
-                <button type="button" onclick="document.getElementById('assignTaskModal').classList.add('hidden')" 
-                        class="px-6 py-2 opacity-60 hover:opacity-100 font-bold">Cancel</button>
-                <button type="submit" class="neo-btn px-8 py-2 text-green-600">Assign</button>
-            </div>
-        </form>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Task Title</label>
+                    <input type="text" name="title" required placeholder="e.g. Design Database Schema" class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Task Description</label>
+                    <textarea name="description" rows="3" placeholder="Describe the task..." class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Due Date</label>
+                    <input type="date" id="assignTaskDeadline" name="deadline" required class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Assign To</label>
+                    <select name="assign_to_employee_id" required multiple size="4" class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                        {% if team %}
+                            {% for member in team.members if member.id != user.id %}
+                                <option value="{{ member.employee_id }}">{{ member.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                    <div class="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple employees.</div>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="document.getElementById('assignTaskModal').classList.add('hidden')" class="px-6 py-2 text-gray-500 hover:text-gray-900 font-bold">Cancel</button>
+                    <button type="submit" class="neo-btn px-8 py-2 text-green-600">Assign</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
+<script>
+function getTodayIsoDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function openAssignTaskModal() {
+    const deadlineInput = document.getElementById('assignTaskDeadline');
+    if (deadlineInput) {
+        deadlineInput.setAttribute('min', getTodayIsoDate());
+    }
+    document.getElementById('assignTaskModal').classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const deadlineInput = document.getElementById('assignTaskDeadline');
+    if (deadlineInput) {
+        deadlineInput.setAttribute('min', getTodayIsoDate());
+    }
+});
+</script>
 {% endblock %}

@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Request, Form
+﻿from fastapi import Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -20,6 +20,73 @@ from . import chat_store
 
 
 def register_manager_routes(app):
+
+    @app.post("/manager/update_task")
+    async def manager_update_task(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
+        data = await request.json()
+        employee_id = data.get("employee_id")
+        idx = int(data.get("idx", 0))
+        # Try to find the task in both personal and project tasks
+        # 1. Personal task
+        personal_tasks = db.query(Task).filter(Task.user_id == employee_id).all()
+        if idx < len(personal_tasks):
+            task = personal_tasks[idx]
+            task.title = data.get("title", task.title)
+            task.description = data.get("description", task.description)
+            task.status = data.get("status", task.status)
+            if data.get("assigned_at"):
+                try:
+                    task.created_at = datetime.datetime.strptime(data["assigned_at"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            if data.get("completed_at"):
+                try:
+                    task.completed_at = datetime.datetime.strptime(data["completed_at"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            if data.get("due_date"):
+                try:
+                    task.due_date = datetime.datetime.strptime(data["due_date"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            db.commit()
+            return {"ok": True, "type": "personal"}
+        # 2. Project task (find by order after personal tasks)
+        team = db.query(Team).filter(Team.id == db.query(User).filter(User.employee_id == employee_id).first().current_team_id).first()
+        project_tasks = []
+        if team and team.project_id:
+            project_tasks = (
+                db.query(ProjectTask, ProjectTaskAssignee)
+                .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+                .filter(ProjectTask.project_id == team.project_id, ProjectTaskAssignee.employee_id == employee_id)
+                .all()
+            )
+        proj_idx = idx - len(personal_tasks)
+        if 0 <= proj_idx < len(project_tasks):
+            pt, pa = project_tasks[proj_idx]
+            pt.title = data.get("title", pt.title)
+            pt.description = data.get("description", pt.description)
+            pa.status = data.get("status", pa.status)
+            if data.get("assigned_at"):
+                try:
+                    pa.assigned_at = datetime.datetime.strptime(data["assigned_at"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            if data.get("completed_at"):
+                try:
+                    pa.completed_at = datetime.datetime.strptime(data["completed_at"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            if data.get("due_date"):
+                try:
+                    pt.deadline = datetime.datetime.strptime(data["due_date"], "%Y-%m-%d")
+                except Exception:
+                    pass
+            db.commit()
+            return {"ok": True, "type": "project"}
+        return JSONResponse({"ok": False, "error": "Task not found"}, status_code=404)
     @app.get("/manager/manage_teams", response_class=HTMLResponse)
     async def manager_manage_teams(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "manager":
@@ -56,15 +123,16 @@ def register_manager_routes(app):
 
             member_task_status = []
             if member_employee_ids and t.project_id:
+
                 task_rows = (
                     db.query(
                         ProjectTaskAssignee.employee_id,
                         ProjectTask.id,
                         ProjectTask.title,
-                        ProjectTask.status,
+                        ProjectTaskAssignee.status,
                         ProjectTask.created_at,
                         ProjectTask.deadline,
-                        ProjectTask.completed_at
+                        ProjectTaskAssignee.completed_at
                     )
                     .join(ProjectTask, ProjectTask.id == ProjectTaskAssignee.task_id)
                     .filter(
@@ -159,6 +227,52 @@ def register_manager_routes(app):
             "projects": projects
         })
 
+    @app.get("/manager/team/{team_id}/details", response_class=HTMLResponse)
+    async def manager_team_details(team_id: int, request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        members = db.query(User).filter(User.current_team_id == team_id).all()
+        # For each member, get their assigned tasks (personal and project)
+        member_list = []
+        for member in members:
+            # Personal tasks
+            personal_tasks = db.query(Task).filter(Task.user_id == member.employee_id).all()
+            # Project tasks (if team has a project)
+            project_tasks = []
+            if team.project_id:
+                project_tasks = (
+                    db.query(ProjectTask, ProjectTaskAssignee)
+                    .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+                    .filter(ProjectTask.project_id == team.project_id, ProjectTaskAssignee.employee_id == member.employee_id)
+                    .all()
+                )
+            # Flatten project tasks
+            project_task_list = [
+                type('TaskObj', (), {
+                    'title': pt.title,
+                    'status': pa.status
+                }) for pt, pa in project_tasks
+            ]
+            all_tasks = list(personal_tasks) + project_task_list
+            member_list.append({
+                'name': member.name,
+                'title': member.title,
+                'email': member.email,
+                'tasks': all_tasks
+            })
+        return templates.TemplateResponse(
+            "employee/manager_team_details.html",
+            {
+                "request": request,
+                "user": user,
+                "team": team,
+                "members": member_list
+            }
+        )
+
     @app.get("/manager/team/{team_id}/members", response_class=HTMLResponse)
     def view_team_members(team_id: int, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
         if user.role != "manager":
@@ -169,14 +283,57 @@ def register_manager_routes(app):
             raise HTTPException(status_code=404, detail="Team not found")
 
         members = db.query(User).filter(User.current_team_id == team_id).all()
-
+        # For each member, get their assigned tasks (personal and project)
+        member_list = []
+        for member in members:
+            # Personal tasks
+            personal_tasks = db.query(Task).filter(Task.user_id == member.employee_id).all()
+            personal_task_objs = [
+                {
+                    'title': t.title,
+                    'status': t.status,
+                    'description': t.description or '',
+                    'assigned_at': t.created_at.strftime('%Y-%m-%d') if t.created_at else '',
+                    'completed_at': t.completed_at.strftime('%Y-%m-%d') if hasattr(t, 'completed_at') and t.completed_at else '',
+                    'due_date': t.due_date.strftime('%Y-%m-%d') if hasattr(t, 'due_date') and t.due_date else ''
+                } for t in personal_tasks
+            ]
+            # Project tasks (if team has a project)
+            project_tasks = []
+            if team.project_id:
+                project_tasks = (
+                    db.query(ProjectTask, ProjectTaskAssignee)
+                    .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+                    .filter(ProjectTask.project_id == team.project_id, ProjectTaskAssignee.employee_id == member.employee_id)
+                    .all()
+                )
+            project_task_objs = [
+                {
+                    'title': pt.title,
+                    'status': pa.status,
+                    'description': pt.description or '',
+                    'assigned_at': pa.assigned_at.strftime('%Y-%m-%d') if hasattr(pa, 'assigned_at') and pa.assigned_at else '',
+                    'completed_at': pa.completed_at.strftime('%Y-%m-%d') if hasattr(pa, 'completed_at') and pa.completed_at else '',
+                    'due_date': pt.deadline.strftime('%Y-%m-%d') if hasattr(pt, 'deadline') and pt.deadline else ''
+                } for pt, pa in project_tasks
+            ]
+            all_tasks = personal_task_objs + project_task_objs
+            member_list.append({
+                'name': member.name,
+                'employee_id': member.employee_id,
+                'email': member.email,
+                'department': member.department,
+                'role': member.role,
+                'is_active': member.is_active,
+                'tasks': all_tasks
+            })
         return templates.TemplateResponse(
             "admin/team_members.html",
             {
                 "request": request,
                 "user": user,
                 "team": team,
-                "members": members
+                "members": member_list
             }
         )
 
@@ -1217,12 +1374,14 @@ def register_manager_routes(app):
             ]
         })
 
+
     @app.post("/manager/projects/add_task")
     async def manager_add_project_task(
         project_id: int = Form(...),
         title: str = Form(...),
         description: Optional[str] = Form(None),
         deadline: Optional[str] = Form(None),
+        assignee_employee_id: Optional[str] = Form(None),
         user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ):
@@ -1254,6 +1413,19 @@ def register_manager_routes(app):
         db.commit()
         db.refresh(new_task)
 
+        # If an assignee is specified, create a ProjectTaskAssignee entry
+        if assignee_employee_id:
+            employee = db.query(User).filter(User.employee_id == assignee_employee_id, User.is_active == True).first()
+            if employee:
+                from .app_context import hash_employee_id
+                db.add(ProjectTaskAssignee(
+                    task_id=new_task.id,
+                    employee_id=employee.employee_id,
+                    employee_id_hash=hash_employee_id(employee.employee_id),
+                    status="pending"
+                ))
+                db.commit()
+
         return JSONResponse({
             "ok": True,
             "task": {
@@ -1265,48 +1437,4 @@ def register_manager_routes(app):
             }
         })
 
-    @app.get("/leader/dashboard", response_class=HTMLResponse)
-    async def leader_dashboard(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-        if user.role != "team_lead" and user.role != "manager":
-            raise HTTPException(status_code=403)
-
-        my_team = db.query(Team).filter(Team.leader_id == user.id).first()
-        projects = db.query(Project).filter(Project.department == user.department).all()
-
-        return templates.TemplateResponse("employee/employee_leader_dashboard.html", {
-            "request": request,
-            "user": user,
-            "team": my_team,
-            "projects": projects
-        })
-
-    @app.post("/leader/assign_task")
-    async def assign_task(
-        project_id: int = Form(...),
-        title: str = Form(...),
-        deadline: str = Form(...),
-        assign_to_employee_id: str = Form(...),
-        user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
-    ):
-        if user.role not in ["team_lead", "manager"]:
-            raise HTTPException(status_code=403)
-
-        new_task = ProjectTask(
-            project_id=project_id,
-            title=title,
-            deadline=datetime.datetime.strptime(deadline, "%Y-%m-%d"),
-            status="pending"
-        )
-        db.add(new_task)
-        db.commit()
-
-        assignment = ProjectTaskAssignee(
-            task_id=new_task.id,
-            employee_id=assign_to_employee_id,
-            employee_id_hash=hash_employee_id(assign_to_employee_id)
-        )
-        db.add(assignment)
-        db.commit()
-
-        return RedirectResponse("/leader/dashboard", status_code=303)
+    # ...existing code...

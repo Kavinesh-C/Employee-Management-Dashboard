@@ -297,6 +297,12 @@ body {
                   <input type="text" id="projectTaskTitle" class="w-full px-4 py-2 border border-slate-200 text-sm" placeholder="Task title" required>
                   <textarea id="projectTaskDescription" rows="3" class="w-full px-4 py-2 border border-slate-200 text-sm resize-none" placeholder="Task description"></textarea>
                   <input type="date" id="projectTaskDeadline" class="w-full px-4 py-2 border border-slate-200 text-sm">
+                  <select id="projectTaskAssignee" class="w-full px-4 py-2 border border-slate-200 text-sm">
+                    <option value="">Assign to (optional)</option>
+                    {% for emp in employees %}
+                      <option value="{{ emp.employee_id }}">{{ emp.name }} ({{ emp.employee_id }})</option>
+                    {% endfor %}
+                  </select>
                   <div class="flex items-center justify-between">
                     <span id="projectTaskStatus" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"></span>
                     <button type="submit" class="btn-exec btn-outline">Add Task</button>
@@ -315,6 +321,14 @@ body {
 <script>
 let allProjects = [];
 let selectedProjectId = null;
+
+function getTodayIsoDate() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
   // Set up project card click/touch handlers
@@ -382,6 +396,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const taskDescription = document.getElementById('projectTaskDescription');
   const taskDeadline = document.getElementById('projectTaskDeadline');
   const taskStatus = document.getElementById('projectTaskStatus');
+  if (taskDeadline) {
+    taskDeadline.setAttribute('min', getTodayIsoDate());
+  }
   if (taskForm) {
     taskForm.addEventListener('submit', function(event) {
       event.preventDefault();
@@ -391,7 +408,16 @@ document.addEventListener('DOMContentLoaded', function() {
       fd.append('project_id', String(selectedProjectId));
       fd.append('title', taskTitle.value.trim());
       fd.append('description', taskDescription.value || '');
+      if (taskDeadline.value && taskDeadline.value < getTodayIsoDate()) {
+        taskStatus.textContent = 'Past date not allowed';
+        setTimeout(() => { taskStatus.textContent = ''; }, 2000);
+        return;
+      }
       if (taskDeadline.value) fd.append('deadline', taskDeadline.value);
+      const assigneeSelect = document.getElementById('projectTaskAssignee');
+      if (assigneeSelect && assigneeSelect.value) {
+        fd.append('assignee_employee_id', assigneeSelect.value);
+      }
       taskStatus.textContent = 'Adding...';
       fetch('/manager/projects/add_task', { method: 'POST', body: fd })
         .then(res => res.json())

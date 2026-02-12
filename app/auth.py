@@ -30,11 +30,15 @@ def verify_password(password: str, hashed_password: str) -> bool:
 
 
 def authenticate_user(db: Session, employee_id: str, password: str):
+
     user = db.query(User).filter(User.employee_id == employee_id).first()
     if not user:
+        print(f"[AUTH DEBUG] User not found for employee_id: {employee_id}")
         return None
     if not verify_password(password, user.password_hash):
+        print(f"[AUTH DEBUG] Password mismatch for employee_id: {employee_id}")
         return None
+    print(f"[AUTH DEBUG] Successful login for employee_id: {employee_id}")
     return user
 
 

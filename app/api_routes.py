@@ -481,24 +481,31 @@ def register_api_routes(app):
 
         db.commit()
 
+        safe_offset = max(offset, 0)
+        safe_limit = min(max(limit, 1), 100)
         total_count = db.query(Notification).filter(Notification.user_id == user.id).count()
         items = (
             db.query(Notification)
             .filter(Notification.user_id == user.id)
             .order_by(Notification.created_at.desc())
-            .offset(max(offset, 0))
-            .limit(min(max(limit, 1), 100))
+            .offset(safe_offset)
+            .limit(safe_limit)
             .all()
         )
         unread_count = db.query(Notification).filter(
             Notification.user_id == user.id,
             Notification.is_read == False
         ).count()
+        returned_count = len(items)
+        next_offset = safe_offset + returned_count
 
         return {
             "total": total_count,
-            "offset": offset,
-            "limit": limit,
+            "offset": safe_offset,
+            "limit": safe_limit,
+            "returned": returned_count,
+            "next_offset": next_offset,
+            "has_more": next_offset < total_count,
             "unread_count": unread_count,
             "items": [
                 {

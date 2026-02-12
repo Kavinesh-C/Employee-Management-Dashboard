@@ -147,7 +147,7 @@
     <div class="glass rounded-2xl p-5 border-l-4 border-l-blue-500">
       <p class="stat-label">Pending Tasks</p>
       <p class="mt-2 text-3xl stat-value text-blue-600">
-        {{ tasks|length if tasks else 0 }}
+        {{ pending_tasks_count|default(0) }}
       </p>
     </div>
 
@@ -185,8 +185,8 @@
 
     <div class="glass rounded-2xl p-5">
       <p class="stat-label">Additional Projects</p>
-      {% if additional_projects %}
-        <p class="mt-2 text-lg font-extrabold text-slate-900">{{ additional_projects|length }}</p>
+      {% if additional_projects_count %}
+        <p class="mt-2 text-lg font-extrabold text-slate-900">{{ additional_projects_count }}</p>
         <div class="mt-2 space-y-1">
           {% for proj in additional_projects %}
             <p class="text-xs text-slate-500"><span class="font-semibold text-slate-700">{{ proj.name }}</span></p>

@@ -1,3 +1,65 @@
+
+// ===========================
+// NOTIFICATION BADGE & TOAST
+// ===========================
+
+let lastNotificationIds = new Set();
+let notificationPollingInterval = null;
+
+function updateNotificationBadge(count) {
+    const badge = document.getElementById('notificationBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `px-4 py-2 rounded shadow-lg text-white font-bold text-sm flex items-center space-x-2 toast-${type}`;
+    toast.style.background = type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e42' : '#2563eb';
+    toast.innerHTML = `<span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => container.removeChild(toast), 400);
+    }, 3500);
+}
+
+window.showToast = showToast;
+
+async function pollNotifications() {
+    try {
+        const res = await fetch('/api/notifications?offset=0&limit=10');
+        if (!res.ok) return;
+        const data = await res.json();
+        updateNotificationBadge(data.unread_count || 0);
+        // Toast for new notifications
+        const newIds = new Set((data.items || []).map(n => n.id));
+        const newNotifs = (data.items || []).filter(n => !lastNotificationIds.has(n.id) && !n.is_read);
+        newNotifs.forEach(n => {
+            showToast(n.title + (n.message ? ': ' + n.message : ''), 'info');
+        });
+        lastNotificationIds = newIds;
+    } catch (err) {
+        // Optionally handle error
+    }
+}
+
+function startNotificationPolling() {
+    pollNotifications();
+    if (notificationPollingInterval) clearInterval(notificationPollingInterval);
+    notificationPollingInterval = setInterval(pollNotifications, 10000); // every 10s
+}
+
+document.addEventListener('DOMContentLoaded', startNotificationPolling);
+
 // ===========================
 // AI CALENDAR FUNCTIONALITY
 // ===========================

@@ -242,6 +242,9 @@ class ProjectTaskAssignee(Base):
     task_id = Column(Integer, ForeignKey("project_tasks.id"), nullable=False)
     employee_id = Column(String(60), ForeignKey("users.employee_id"), nullable=False)
     employee_id_hash = Column(String(64), nullable=True, index=True)
+    # Per-assignee completion
+    status = Column(String(20), default="pending")  # pending, in-progress, completed
+    completed_at = Column(DateTime, nullable=True)
 
     task = relationship("ProjectTask", back_populates="assignees")
     employee = relationship("User", primaryjoin="User.employee_id == ProjectTaskAssignee.employee_id")

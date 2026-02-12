@@ -1,5 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.exception_handlers import http_exception_handler
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -8,6 +7,7 @@ from sqlalchemy import inspect, text
 import datetime
 import csv
 from pathlib import Path
+from fastapi.exception_handlers import http_exception_handler
 
 from .database import SessionLocal, engine, Base
 from .models import AttendanceDaily, AttendanceDate, ProjectAssignment, ProjectTask, User
@@ -21,12 +21,12 @@ from .manager_routes import register_manager_routes
 from .employee_routes import register_employee_routes
 from .api_routes import register_api_routes
 from .app_context import templates, get_current_user, hash_employee_id
+from .leader_dashboard_routes import router as leader_dashboard_router
+from .error_handlers import register_error_handlers
+from .custom_error_page import router as custom_error_router
 
 BASE_DIR = Path(__file__).resolve().parent
 scheduler = BackgroundScheduler()
-
-Base.metadata.create_all(bind=engine)
-
 
 def auto_sync_schema() -> None:
     """Create missing tables and add missing columns (no drops/changes)."""
@@ -224,10 +224,9 @@ def mark_absent() -> None:
         db.close()
 
 
-auto_sync_schema()
-backfill_project_assignment_hashes()
-backfill_project_task_completed_at()
-migrate_attendance_dates_csv()
+
+
+import time
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
@@ -235,17 +234,30 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(leader_dashboard_router)
+app.include_router(custom_error_router)
 register_web_auth_routes(app)
 register_calendar_routes(app, templates, get_current_user)
 register_admin_routes(app)
 register_manager_routes(app)
 register_employee_routes(app)
 register_api_routes(app)
-
+register_error_handlers(app)
 
 #======================================================================================================
 # DO NOT TOUCH THIS PART NO MATTER WHO YOU ARE--------------------------------------------------------
 #======================================================================================================
+
+# Timing middleware to log request duration
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = (time.perf_counter() - start) * 1000  # ms
+    print(f"[TIMING] {request.method} {request.url.path} took {duration:.2f} ms")
+    return response
+
+# No-cache middleware
 @app.middleware("http")
 async def add_no_cache_headers(request: Request, call_next):
     response = await call_next(request)
@@ -256,6 +268,22 @@ async def add_no_cache_headers(request: Request, call_next):
         response.headers["Expires"] = "0"
     return response
 
+@app.middleware("http")
+async def prevent_back_after_logout(request: Request, call_next):
+    # Only run this middleware if SessionMiddleware is present
+    if "session" not in request.scope:
+        return await call_next(request)
+    session = request.session
+    user_id = session.get("user_id")
+    # List of protected route prefixes
+    protected_prefixes = ["/admin", "/employee", "/manager", "/leader", "/api"]
+    is_protected = any(request.url.path.startswith(prefix) for prefix in protected_prefixes)
+    is_login_page = request.url.path == "/login"
+    # If not authenticated and accessing protected or login page via back button
+    if not user_id and (is_protected or is_login_page) and request.method == "GET":
+        return templates.TemplateResponse("auth/401.html", {"request": request}, status_code=401)
+    return await call_next(request)
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 401:
@@ -265,7 +293,6 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     return await http_exception_handler(request, exc)
 
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 
 @app.get("/")
