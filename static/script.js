@@ -40,12 +40,21 @@ async function pollNotifications() {
         if (!res.ok) return;
         const data = await res.json();
         updateNotificationBadge(data.unread_count || 0);
-        // Toast for new notifications
+        // Toast for new notifications, but only once per session
         const newIds = new Set((data.items || []).map(n => n.id));
-        const newNotifs = (data.items || []).filter(n => !lastNotificationIds.has(n.id) && !n.is_read);
+        // Use sessionStorage to track shown notification IDs
+        let shownNotifs = [];
+        try {
+            shownNotifs = JSON.parse(sessionStorage.getItem('shownNotificationIds') || '[]');
+        } catch (e) { shownNotifs = []; }
+        const shownSet = new Set(shownNotifs);
+        const newNotifs = (data.items || []).filter(n => !shownSet.has(n.id) && !n.is_read);
         newNotifs.forEach(n => {
             showToast(n.title + (n.message ? ': ' + n.message : ''), 'info');
+            shownSet.add(n.id);
         });
+        // Save updated shown notification IDs to sessionStorage
+        sessionStorage.setItem('shownNotificationIds', JSON.stringify(Array.from(shownSet)));
         lastNotificationIds = newIds;
     } catch (err) {
         // Optionally handle error
