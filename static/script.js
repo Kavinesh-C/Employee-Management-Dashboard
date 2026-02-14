@@ -60,9 +60,47 @@ function startNotificationPolling() {
 
 document.addEventListener('DOMContentLoaded', startNotificationPolling);
 
+let lastSessionTouchAt = 0;
+let sessionTouchTimer = null;
+const SESSION_TOUCH_DEBOUNCE_MS = 15000;
+
+async function touchSession() {
+    const now = Date.now();
+    if (now - lastSessionTouchAt < SESSION_TOUCH_DEBOUNCE_MS) return;
+    lastSessionTouchAt = now;
+    try {
+        await fetch('/api/session/touch', { method: 'POST' });
+    } catch (err) {
+        // Ignore network/auth errors; server-side timeout still applies.
+    }
+}
+
+function scheduleSessionTouch() {
+    if (sessionTouchTimer) return;
+    sessionTouchTimer = setTimeout(() => {
+        sessionTouchTimer = null;
+        touchSession();
+    }, 800);
+}
+
+function startSessionActivityTracking() {
+    ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'].forEach((eventName) => {
+        document.addEventListener(eventName, scheduleSessionTouch, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            touchSession();
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', startSessionActivityTracking);
 // ===========================
 // AI CALENDAR FUNCTIONALITY
 // ===========================
+if (!window.__layoutCalendarManaged) {
+(function () {
 
 let calendarState = {
     currentDate: new Date(),
@@ -523,6 +561,8 @@ function updateTargetSection() {
         section.classList.toggle('hidden', type !== 'office_holiday');
     }
 }
+})();
+}
 
 // Simple JS for interactivity (e.g., listing block persons)
 async function listBlock(block) {
@@ -531,3 +571,4 @@ async function listBlock(block) {
     const listDiv = document.getElementById('block-list');
     listDiv.innerHTML = `<h3>Persons in ${block}</h3><ul>${data.persons.map(p => `<li>${p.name}</li>`).join('')}</ul>`;
 }
+

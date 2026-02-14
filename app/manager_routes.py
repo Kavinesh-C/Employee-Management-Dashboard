@@ -2,7 +2,7 @@
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import Optional, List
+from typing import Optional, List, Union
 import datetime
 import secrets
 from urllib.parse import urlparse
@@ -20,6 +20,103 @@ from . import chat_store
 
 
 def register_manager_routes(app):
+    def _normalize_assignees(raw_values: Union[List[str], str, None]) -> List[str]:
+        if raw_values is None:
+            return []
+        values = raw_values if isinstance(raw_values, list) else [raw_values]
+        parsed: List[str] = []
+        for raw in values:
+            if raw is None:
+                continue
+            for token in str(raw).split(","):
+                emp_id = token.strip()
+                if emp_id:
+                    parsed.append(emp_id)
+        return list(dict.fromkeys(parsed))
+
+    @app.post("/manager/check_member_status")
+    async def check_member_status(
+        employee_id: str = Form(...),
+        check_type: str = Form(...),  # 'leader' or 'member'
+        db: Session = Depends(get_db)
+    ):
+        user = db.query(User).filter(User.employee_id == employee_id).first()
+        if not user:
+            return JSONResponse({"ok": False, "message": "User not found"}, status_code=404)
+        if check_type == "leader":
+            # Check if user is already designated as leader on any team
+            team = (
+                db.query(Team)
+                .filter((Team.leader_id == user.id) | (Team.permanent_leader_id == user.id))
+                .first()
+            )
+            if team:
+                return JSONResponse({
+                    "ok": True,
+                    "duplicate": True,
+                    "team_name": team.name,
+                    "message": f"{user.name} is already a team leader."
+                })
+            else:
+                return JSONResponse({"ok": True, "duplicate": False})
+        elif check_type == "member":
+            # Check if user is already a member of any team (current or membership table)
+            team = None
+            if user.current_team_id:
+                team = db.query(Team).filter(Team.id == user.current_team_id).first()
+            if not team:
+                membership = db.query(TeamMember).filter(TeamMember.user_id == user.id).first()
+                if membership:
+                    team = db.query(Team).filter(Team.id == membership.team_id).first()
+            if team:
+                return JSONResponse({
+                    "ok": True,
+                    "duplicate": True,
+                    "team_name": team.name,
+                    "message": f"{user.name} is already a team member."
+                })
+            return JSONResponse({"ok": True, "duplicate": False})
+        else:
+            return JSONResponse({"ok": False, "message": "Invalid check type"}, status_code=400)
+
+    @app.get("/manager/eligible_leaders")
+    async def eligible_leaders(
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        eligible_roles = ["employee", "team_lead", "manager"]
+        leaders = (
+            db.query(User)
+            .filter(
+                User.is_active == True,
+                func.lower(User.role).in_(eligible_roles)
+            )
+            .order_by(User.name.asc())
+            .all()
+        )
+        if not leaders:
+            leaders = (
+                db.query(User)
+                .filter(User.is_active == True, func.lower(User.role) != "admin")
+                .order_by(User.name.asc())
+                .all()
+            )
+
+        return JSONResponse({
+            "ok": True,
+            "leaders": [
+                {
+                    "employee_id": u.employee_id,
+                    "name": u.name,
+                    "role": (u.role or "").lower(),
+                    "department": u.department or ""
+                }
+                for u in leaders if u.employee_id
+            ]
+        })
 
     @app.post("/manager/update_task")
     async def manager_update_task(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
@@ -87,23 +184,107 @@ def register_manager_routes(app):
             db.commit()
             return {"ok": True, "type": "project"}
         return JSONResponse({"ok": False, "error": "Task not found"}, status_code=404)
+
+    @app.post("/manager/delete_task")
+    async def manager_delete_member_task(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        data = await request.json()
+        employee_id = (data.get("employee_id") or "").strip()
+        task_title = (data.get("task_title") or "").strip()
+        idx = int(data.get("idx", 0))
+
+        if not employee_id:
+            return JSONResponse({"ok": False, "error": "Employee ID required"}, status_code=400)
+
+        # Keep index behavior aligned with manager_update_task
+        personal_tasks = db.query(Task).filter(Task.user_id == employee_id).all()
+        if 0 <= idx < len(personal_tasks):
+            db.delete(personal_tasks[idx])
+            db.commit()
+            return {"ok": True, "type": "personal"}
+        if task_title:
+            personal_match = next((t for t in personal_tasks if (t.title or "").strip() == task_title), None)
+            if personal_match:
+                db.delete(personal_match)
+                db.commit()
+                return {"ok": True, "type": "personal"}
+
+        user_row = db.query(User).filter(User.employee_id == employee_id).first()
+        if not user_row or not user_row.current_team_id:
+            return JSONResponse({"ok": False, "error": "Task not found"}, status_code=404)
+
+        team = db.query(Team).filter(Team.id == user_row.current_team_id).first()
+        if not team or not team.project_id:
+            return JSONResponse({"ok": False, "error": "Task not found"}, status_code=404)
+
+        project_tasks = (
+            db.query(ProjectTask, ProjectTaskAssignee)
+            .join(ProjectTaskAssignee, ProjectTask.id == ProjectTaskAssignee.task_id)
+            .filter(
+                ProjectTask.project_id == team.project_id,
+                ProjectTaskAssignee.employee_id == employee_id
+            )
+            .all()
+        )
+
+        proj_idx = idx - len(personal_tasks)
+        if 0 <= proj_idx < len(project_tasks):
+            pt, pa = project_tasks[proj_idx]
+            db.delete(pa)
+            db.flush()
+
+            # If task has no assignees left, remove the task row too.
+            remaining = db.query(ProjectTaskAssignee).filter(ProjectTaskAssignee.task_id == pt.id).count()
+            if remaining == 0:
+                db.delete(pt)
+
+            db.commit()
+            return {"ok": True, "type": "project"}
+        if task_title:
+            project_match = next((row for row in project_tasks if ((row[0].title or "").strip() == task_title)), None)
+            if project_match:
+                pt, pa = project_match
+                db.delete(pa)
+                db.flush()
+                remaining = db.query(ProjectTaskAssignee).filter(ProjectTaskAssignee.task_id == pt.id).count()
+                if remaining == 0:
+                    db.delete(pt)
+                db.commit()
+                return {"ok": True, "type": "project"}
+
+        return JSONResponse({"ok": False, "error": "Task not found"}, status_code=404)
     @app.get("/manager/manage_teams", response_class=HTMLResponse)
     async def manager_manage_teams(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "manager":
             raise HTTPException(status_code=403, detail="Access denied")
 
         teams = db.query(Team).all()
-        active_employees = db.query(User).filter(User.is_active == True).all()
-        assigned_current_ids = {
-            row[0]
-            for row in db.query(User.id).filter(User.current_team_id.isnot(None)).all()
-        }
-        assigned_membership_ids = {
-            row[0]
-            for row in db.query(TeamMember.user_id).all()
-        }
-        assigned_ids = assigned_current_ids | assigned_membership_ids
-        employees = [emp for emp in active_employees if emp.id not in assigned_ids]
+        # Active people eligible to lead or join units.
+        # Include team_lead too, so previously assigned leaders still appear in selection.
+        eligible_roles = ["employee", "team_lead", "manager"]
+        all_employees = (
+            db.query(User)
+            .filter(
+                User.is_active == True,
+                func.lower(User.role).in_(eligible_roles)
+            )
+            .order_by(User.name.asc())
+            .all()
+        )
+        # Fallback for legacy/inconsistent role data:
+        # if strict role filtering yields no rows, still show active non-admin users.
+        if not all_employees:
+            all_employees = (
+                db.query(User)
+                .filter(User.is_active == True, func.lower(User.role) != "admin")
+                .order_by(User.name.asc())
+                .all()
+            )
+        # Member assignment should include already-assigned staff as well.
+        # Duplicate assignment is handled through confirmation in the UI.
+        employees = list(all_employees)
         projects = db.query(Project).filter(Project.department == user.department).all()
 
         departments = db.query(Department).all()
@@ -223,6 +404,7 @@ def register_manager_routes(app):
             "user": user,
             "team_data": team_data,
             "employees": employees,
+            "all_employees": all_employees,
             "departments": departments,
             "projects": projects
         })
@@ -339,12 +521,13 @@ def register_manager_routes(app):
 
     @app.post("/manager/team_tasks/create")
     async def manager_create_team_task(
+        request: Request,
         team_id: int = Form(...),
         title: str = Form(...),
         description: str = Form(""),
         priority: str = Form("medium"),
         due_date: Optional[str] = Form(None),
-        assignees: List[str] = Form(...),
+        assignees: Optional[str] = Form(None),
         user: User = Depends(get_current_user),
         db: Session = Depends(get_db)
     ):
@@ -375,8 +558,12 @@ def register_manager_routes(app):
             except Exception:
                 due_dt = None
 
+        form_data = await request.form()
+        raw_assignees = form_data.getlist("assignees")
+        if not raw_assignees and assignees:
+            raw_assignees = [assignees]
         valid_assignees = []
-        for employee_id in assignees:
+        for employee_id in _normalize_assignees(raw_assignees):
             emp_id = (employee_id or "").strip()
             if not emp_id or emp_id not in member_ids:
                 continue
@@ -595,6 +782,55 @@ def register_manager_routes(app):
             )
         db.commit()
 
+        return RedirectResponse("/manager/manage_teams", status_code=303)
+
+    @app.post("/manager/team/member/remove")
+    async def remove_team_member(
+        team_id: int = Form(...),
+        employee_id: str = Form(...),
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+    ):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        team = db.query(Team).filter(Team.id == team_id).first()
+        if not team:
+            raise HTTPException(status_code=404, detail="Team not found")
+        if user.department and team.department and team.department != user.department:
+            raise HTTPException(status_code=403, detail="Access denied")
+
+        employee = db.query(User).filter(User.employee_id == employee_id).first()
+        if not employee:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        if employee.current_team_id != team.id:
+            raise HTTPException(status_code=400, detail="Employee is not assigned to this team")
+
+        employee.current_team_id = None
+        db.query(TeamMember).filter(TeamMember.user_id == employee.id, TeamMember.team_id == team.id).delete(synchronize_session=False)
+        if team.project_id:
+            db.query(ProjectAssignment).filter(
+                ProjectAssignment.project_id == team.project_id,
+                ProjectAssignment.employee_id == employee.employee_id
+            ).delete(synchronize_session=False)
+        create_notification(
+            db,
+            employee.id,
+            "Team assignment removed",
+            f"You have been removed from team {team.name}.",
+            "team",
+            "/employee/team"
+        )
+        db.commit()
+
+        return RedirectResponse(f"/manager/team/{team.id}/members", status_code=303)
+
+    @app.get("/manager/team/member/remove")
+    async def remove_team_member_get_fallback(
+        user: User = Depends(get_current_user)
+    ):
+        if user.role != "manager":
+            raise HTTPException(status_code=403, detail="Access denied")
         return RedirectResponse("/manager/manage_teams", status_code=303)
 
     @app.get("/manager/dashboard", response_class=HTMLResponse)
@@ -926,12 +1162,13 @@ def register_manager_routes(app):
 
     @app.post("/manager/create_task")
     async def create_task(
+        request: Request,
         title: str = Form(...),
         description: str = Form(""),
         priority: str = Form("medium"),
         due_date: Optional[str] = Form(None),
         project_id: Optional[str] = Form(None),
-        assignees: Optional[List[str]] = Form(None),
+        assignees: Optional[str] = Form(None),
         user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
     ):
@@ -952,8 +1189,14 @@ def register_manager_routes(app):
             except (ValueError, TypeError):
                 pass
 
-        if assignees:
-            for emp_id in assignees:
+        form_data = await request.form()
+        raw_assignees = form_data.getlist("assignees")
+        if not raw_assignees:
+            raw_assignees = _normalize_assignees(assignees)
+        assignee_list = _normalize_assignees(raw_assignees)
+
+        if assignee_list:
+            for emp_id in assignee_list:
                 emp_id = str(emp_id).strip()
                 if not emp_id:
                     continue
@@ -983,7 +1226,7 @@ def register_manager_routes(app):
                 except Exception:
                     continue
             db.commit()
-            for emp_id in assignees:
+            for emp_id in assignee_list:
                 emp_id = str(emp_id).strip()
                 if not emp_id:
                     continue

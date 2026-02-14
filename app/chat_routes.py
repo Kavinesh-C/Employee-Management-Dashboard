@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from .chat_store import add_message, get_messages, get_total_unread
+from .chat_store import add_message, get_messages, get_total_unread, mark_all_read
 from .auth import get_current_user_from_session
 
 router = APIRouter(prefix="/api/chat")
@@ -32,3 +32,9 @@ def send_message(
 @router.get("/unread-count")
 def unread_count(user=Depends(get_current_user_from_session)):
     return {"count": get_total_unread(user.id)}
+
+
+@router.post("/read-all")
+def read_all(user=Depends(get_current_user_from_session)):
+    mark_all_read(user.id)
+    return {"ok": True}

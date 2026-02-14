@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import Optional, List
 import datetime
+import re
 import os
 from pathlib import Path
 from io import BytesIO
@@ -294,11 +295,59 @@ def register_employee_routes(app):
 
     @app.get("/employee/attendance", response_class=HTMLResponse)
     async def employee_attendance_page(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-        logs = db.query(Attendance).filter(
+        start_date_str = (request.query_params.get("start_date") or "").strip()
+        end_date_str = (request.query_params.get("end_date") or "").strip()
+        query = db.query(Attendance).filter(Attendance.employee_id == user.employee_id)
+
+        def parse_date(date_str: str):
+            if not date_str:
+                return None
+            cleaned = re.sub(r"[^\d]", "-", date_str).strip("-")
+            parts = [p for p in cleaned.split("-") if p]
+            if len(parts) == 3:
+                try:
+                    if len(parts[0]) == 4:
+                        return datetime.date(int(parts[0]), int(parts[1]), int(parts[2]))
+                    if len(parts[2]) == 4:
+                        return datetime.date(int(parts[2]), int(parts[1]), int(parts[0]))
+                except Exception:
+                    pass
+            for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+                try:
+                    return datetime.datetime.strptime(date_str, fmt).date()
+                except Exception:
+                    continue
+            try:
+                return datetime.date.fromisoformat(date_str)
+            except Exception:
+                return None
+
+        start_date = parse_date(start_date_str) if start_date_str else None
+        end_date = parse_date(end_date_str) if end_date_str else None
+
+        logs = query.order_by(Attendance.date.desc(), Attendance.entry_time.desc()).all()
+
+        if start_date or end_date:
+            filtered_logs = []
+            for rec in logs:
+                record_date = rec.entry_time.date() if rec.entry_time else rec.date
+                if record_date is None:
+                    continue
+                if start_date and record_date < start_date:
+                    continue
+                if end_date and record_date > end_date:
+                    continue
+                filtered_logs.append(rec)
+            logs = filtered_logs
+
+        total_hours = db.query(func.sum(Attendance.duration)).filter(
             Attendance.employee_id == user.employee_id
-        ).order_by(Attendance.date.desc()).all()
+        ).scalar() or 0
         return templates.TemplateResponse("employee/employee_attendance.html",
                                           {"request": request, "user": user, "logs": logs,
+                                           "start_date_value": start_date.isoformat() if start_date else "",
+                                           "end_date_value": end_date.isoformat() if end_date else "",
+                                           "total_hours": round(total_hours, 2),
                                            "current_year": datetime.datetime.utcnow().year})
 
     @app.post("/employee/project_tasks/complete")

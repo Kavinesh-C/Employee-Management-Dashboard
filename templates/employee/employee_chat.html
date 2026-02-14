@@ -200,8 +200,16 @@ function refreshChatBadge() {
         });
 }
 
+async function clearAllChatUnread() {
+    try {
+        await fetch("/api/chat/read-all", { method: "POST" });
+    } catch (_) {}
+    refreshChatBadge();
+}
+
 /* poll unread count */
 setInterval(refreshChatBadge, 5000);
 refreshChatBadge();
+clearAllChatUnread();
 </script>
 {% endblock %}

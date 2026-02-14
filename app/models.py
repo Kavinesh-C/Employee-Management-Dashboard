@@ -14,6 +14,10 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     rfid_tag = Column(String(100), unique=True, nullable=False)
+    # Reversible encrypted mirrors for secure viewing/audit workflows.
+    name_secure = Column(Text, nullable=True)
+    email_secure = Column(Text, nullable=True)
+    rfid_tag_secure = Column(Text, nullable=True)
     title = Column(String(100), nullable=True)
     date_of_birth = Column(Date, nullable=True)
     photo_path = Column(String(255), nullable=True)
@@ -22,11 +26,19 @@ class User(Base):
     notes = Column(Text, nullable=True)
     phone = Column(String(40), nullable=True)
     address = Column(Text, nullable=True)
-    # employee_id_hash = Column(String(64), nullable=True, index=True)  # SHA256 hash of employee_id for security
+    # Hash mirrors for security analytics and integrity history
+    employee_id_hash = Column(String(64), nullable=True, index=True)
+    name_hash = Column(String(64), nullable=True, index=True)
+    email_hash = Column(String(64), nullable=True, index=True)
+    rfid_tag_hash = Column(String(64), nullable=True, index=True)
+    role_hash = Column(String(64), nullable=True, index=True)
+    department_hash = Column(String(64), nullable=True, index=True)
     
     # Roles: 'admin', 'manager', 'team_lead', 'employee'
     role = Column(String(50), nullable=False) 
     department = Column(String(100), nullable=True)
+    role_secure = Column(Text, nullable=True)
+    department_secure = Column(Text, nullable=True)
     password_hash = Column(String(200), nullable=False)
     is_active = Column(Boolean, default=True)
 
@@ -61,6 +73,7 @@ class Department(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255), nullable=True)
+    prefix = Column(String(20), nullable=True)  # Department-specific prefix for employee IDs
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -411,3 +424,27 @@ class CalendarSettings(Base):
     
     # Relationships
     user = relationship("User")
+
+
+class SecurityManagedSetting(Base):
+    __tablename__ = "security_managed_settings"
+    id = Column(Integer, primary_key=True, index=True)
+    feature_id = Column(String(80), nullable=False, index=True)
+    key = Column(String(120), nullable=False)
+    value = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("feature_id", "key", name="uix_security_feature_key"),
+    )
+
+
+class SecurityCertificate(Base):
+    __tablename__ = "security_certificates"
+    id = Column(Integer, primary_key=True, index=True)
+    feature_id = Column(String(80), nullable=False, index=True)
+    filename = Column(String(255), nullable=False)
+    content_type = Column(String(120), nullable=True)
+    data = Column(LargeBinary, nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.datetime.utcnow)

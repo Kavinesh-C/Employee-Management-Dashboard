@@ -28,13 +28,15 @@
                     01. Departments <span class="h-px flex-1 bg-slate-100"></span>
                 </h2>
                 
-                <form action="/admin/add_department" method="POST" class="mb-10 group">
-                    <div class="space-y-px bg-slate-200 border border-slate-200">
-                        <input type="text" name="name" required placeholder="Nomenclature" 
+                <form id="addDepartmentForm" action="/admin/add_department" method="POST" class="mb-10 group">
+                          <div class="space-y-px bg-slate-200 border border-slate-200">
+                           <input type="text" name="name" required placeholder="Nomenclature" 
                                class="w-full bg-white px-6 py-4 text-xs font-bold uppercase tracking-widest outline-none focus:bg-slate-50 transition-all">
-                        <input type="text" name="description" placeholder="Operational Scope" 
+                           <input type="text" name="description" placeholder="Operational Scope" 
                                class="w-full bg-white px-6 py-4 text-xs font-medium outline-none focus:bg-slate-50 transition-all">
-                    </div>
+                           <input type="text" name="prefix" placeholder="Department Prefix (e.g. 2261)" 
+                               class="w-full bg-white px-6 py-4 text-xs font-medium outline-none focus:bg-slate-50 transition-all">
+                          </div>
                     <button type="submit" class="w-full mt-4 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all">
                         Authorize Department
                     </button>
@@ -42,10 +44,15 @@
 
                 <div id="deptList" class="space-y-4">
                     {% for dept in departments %}
-                    <div class="group border-l-2 border-slate-100 hover:border-blue-600 pl-6 py-2 transition-all">
-                        <p class="text-sm font-black text-slate-900 uppercase tracking-tight">{{ dept.name }}</p>
-                        <p class="text-xs text-slate-400 mt-1 font-medium">{{ dept.description or 'Standard scope' }}</p>
-                    </div>
+                    <form action="/admin/update_department" method="POST" class="group border-l-2 border-slate-100 hover:border-blue-600 pl-6 py-3 transition-all grid grid-cols-1 gap-3">
+                        <input type="hidden" name="id" value="{{ dept.id }}">
+                        <input type="text" name="name" value="{{ dept.name }}" required class="w-full min-w-0 text-sm font-black text-slate-900 uppercase tracking-tight bg-transparent border-b border-slate-200 focus:border-blue-600 outline-none">
+                        <input type="text" name="description" value="{{ dept.description or '' }}" placeholder="Description" class="w-full min-w-0 text-xs text-slate-400 font-medium bg-transparent border-b border-slate-200 focus:border-blue-600 outline-none">
+                        <div class="flex items-center gap-3">
+                            <input type="text" name="prefix" value="{{ dept.prefix or '' }}" placeholder="Prefix" class="flex-1 min-w-0 text-xs text-slate-400 font-medium bg-transparent border-b border-slate-200 focus:border-blue-600 outline-none">
+                            <button type="submit" class="shrink-0 text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-800 transition-all">Update</button>
+                        </div>
+                    </form>
                     {% endfor %}
                 </div>
             </div>
@@ -61,7 +68,7 @@
        placeholder="Filter directory..." 
        class="w-full md:w-72 text-[10px] font-bold uppercase tracking-widest border border-slate-200 px-4 py-3 outline-none focus:border-slate-400 focus:bg-white bg-slate-50/50 transition-all rounded-none">              </div>
 
-                <form action="/admin/add_room" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-px bg-slate-200 border border-slate-200 mb-12">
+                <form id="addRoomForm" action="/admin/add_room" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-px bg-slate-200 border border-slate-200 mb-12">
                     <input type="text" name="room_no" required placeholder="Asset ID" class="bg-white p-5 text-xs font-bold outline-none">
                     <input type="text" name="location_name" required placeholder="Site Location" class="bg-white p-5 text-xs font-bold outline-none">
                     <input type="text" name="description" placeholder="Specification" class="bg-white p-5 text-xs font-bold outline-none">
@@ -121,5 +128,55 @@
             items[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
         }
     }
+
+    async function submitSettingsForm(form, successMessage) {
+        if (!form) return;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalLabel = submitBtn ? submitBtn.textContent : '';
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+            }
+            const res = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form)
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const detail = data.detail || 'Request failed';
+                window.showToast?.(String(detail), 'error');
+                return;
+            }
+            window.showToast?.(successMessage, 'success');
+            form.reset();
+            setTimeout(() => window.location.reload(), 450);
+        } catch (_) {
+            window.showToast?.('Network error while saving.', 'error');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalLabel;
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const deptForm = document.getElementById('addDepartmentForm');
+        const roomForm = document.getElementById('addRoomForm');
+
+        if (deptForm) {
+            deptForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await submitSettingsForm(deptForm, 'Department authorized successfully.');
+            });
+        }
+        if (roomForm) {
+            roomForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await submitSettingsForm(roomForm, 'Infrastructure asset logged successfully.');
+            });
+        }
+    });
 </script>
 {% endblock %}

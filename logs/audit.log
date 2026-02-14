@@ -1,0 +1,10 @@
+2026-02-14 09:45:09,046 INFO event=security_events_clear user_id=3 ip=127.0.0.1 request_id= method=POST path=/admin/security/events/clear details=security.log,audit.log
+2026-02-14 09:45:09,200 INFO event=security_toggle user_id=3 ip=127.0.0.1 request_id= method=POST path=/admin/security/events/sample details=CSRF_PROTECTION_ENABLED=true
+2026-02-14 09:45:09,202 INFO event=security_env_update user_id=3 ip=127.0.0.1 request_id= method=POST path=/admin/security/events/sample details=SECURITY_CONFIG_LOG_LEVEL=INFO
+2026-02-14 11:43:02,838 INFO event=auth_login_success user_id=3 ip=127.0.0.1 request_id= method=POST path=/login details=employee_id=ADMIN001;role=admin
+2026-02-14 12:20:32,203 INFO event=auth_logout user_id=3 ip=127.0.0.1 request_id= method=GET path=/logout details=logout
+2026-02-14 12:20:43,873 INFO event=auth_login_success user_id=3 ip=127.0.0.1 request_id= method=POST path=/login details=employee_id=ADMIN001;role=admin
+2026-02-14 12:20:57,690 INFO event=auth_logout user_id=3 ip=127.0.0.1 request_id= method=GET path=/logout details=logout
+2026-02-14 12:26:25,338 INFO event=auth_login_success user_id=3 ip=127.0.0.1 request_id= method=POST path=/login details=employee_id=ADMIN001;role=admin
+2026-02-14 12:26:28,011 INFO event=auth_logout user_id=3 ip=127.0.0.1 request_id= method=GET path=/logout details=logout
+2026-02-14 12:31:49,284 INFO event=auth_login_success user_id=3 ip=127.0.0.1 request_id= method=POST path=/login details=employee_id=ADMIN001;role=admin

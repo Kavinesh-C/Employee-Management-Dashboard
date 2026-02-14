@@ -122,7 +122,7 @@ DATABASE_URL=" <-- your database url --> "
 
 ```bash
 # Start with auto-reload for development
-uvicorn app.main:app --reload --http httptools
+uvicorn app.main:app --reload 
 ```
 Or use this 
 

@@ -5,6 +5,18 @@ from typing import Optional
 import datetime
 import random
 import string
+
+# ...existing code...
+
+# Place this endpoint after app is defined and other endpoints are declared
+# ...existing code...
+from fastapi import Depends, HTTPException, Request, Form, File, UploadFile
+from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
+from typing import Optional
+import datetime
+import random
+import string
 import pandas as pd
 
 
@@ -18,9 +30,71 @@ from .auth import hash_password
 from .email_service import send_welcome_email, send_leave_status_email
 from .app_context import templates, get_current_user, create_notification
 from .payroll_utils import calculate_monthly_payroll
+from Security.data_integrity import sha256_hex
+from Security.hash_history import log_hash_history
+from .security_bootstrap import encrypt_value
+
+
+def _hash_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    if not cleaned:
+        return None
+    return sha256_hex(cleaned)
+
+
+def _sync_user_hashes(emp: User, actor: User | None = None, details: str = "update") -> None:
+    fields = {
+        "employee_id": ("employee_id_hash", emp.employee_id),
+        "name": ("name_hash", emp.name),
+        "email": ("email_hash", emp.email),
+        "rfid_tag": ("rfid_tag_hash", emp.rfid_tag),
+        "role": ("role_hash", emp.role),
+        "department": ("department_hash", emp.department),
+    }
+    for field_name, (hash_attr, source_value) in fields.items():
+        old_hash = getattr(emp, hash_attr, None)
+        new_hash = _hash_optional(source_value)
+        if old_hash == new_hash:
+            continue
+        setattr(emp, hash_attr, new_hash)
+        log_hash_history(
+            entity_type="User",
+            entity_id=emp.employee_id,
+            field_name=field_name,
+            old_hash=old_hash,
+            new_hash=new_hash,
+            actor_id=str(actor.id) if actor else None,
+            actor_name=actor.name if actor else None,
+            employee_name=emp.name,
+            details=details,
+        )
+
+
+def _sync_user_secure_fields(emp: User) -> None:
+    # Keep encrypted mirrors in sync so values can be safely revealed where required.
+    emp.name_secure = encrypt_value(emp.name)
+    emp.email_secure = encrypt_value(emp.email)
+    emp.rfid_tag_secure = encrypt_value(emp.rfid_tag)
+    emp.role_secure = encrypt_value(emp.role)
+    emp.department_secure = encrypt_value(emp.department)
 
 
 def register_admin_routes(app):
+    @app.post("/admin/update_department")
+    async def update_department(request: Request, id: int = Form(...), name: str = Form(...), description: str = Form(None), prefix: str = Form(None),
+                               user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+        if user.role != "admin":
+            raise HTTPException(status_code=403, detail="Access denied")
+        dept = db.query(Department).filter(Department.id == id).first()
+        if not dept:
+            raise HTTPException(status_code=404, detail="Department not found")
+        dept.name = name
+        dept.description = description
+        dept.prefix = prefix
+        db.commit()
+        return RedirectResponse(url="/admin/settings", status_code=303)
     @app.get("/admin/select_dashboard", response_class=HTMLResponse)
     async def admin_choice(request: Request, user: User = Depends(get_current_user)):
         return templates.TemplateResponse("admin/admin_select_dashboard.html", {"request": request, "user": user})
@@ -168,11 +242,12 @@ def register_admin_routes(app):
         if existing_rfid:
             raise HTTPException(status_code=400, detail=f"RFID tag '{rfid_tag}' is already assigned to another employee")
 
-        prefix = {"IT": "2261", "HR": "2262", "Finance": "2263"}.get(department, "2260")
+        dept_obj = db.query(Department).filter(Department.name == department).first()
+        prefix = dept_obj.prefix if dept_obj and dept_obj.prefix else "2260"
         max_emp = db.query(User).filter(User.employee_id.like(f"{prefix}%")).order_by(User.employee_id.desc()).first()
-        if max_emp and len(max_emp.employee_id) > 4:
+        if max_emp and len(max_emp.employee_id) > len(prefix):
             try:
-                suffix = int(max_emp.employee_id[4:])
+                suffix = int(max_emp.employee_id[len(prefix):])
                 next_id = suffix + 1
             except ValueError:
                 next_id = 1
@@ -234,6 +309,8 @@ def register_admin_routes(app):
         new_user.is_active = True if is_active else False
         new_user.can_manage = True if can_manage else False
         new_user.active_leader = True if active_leader else False
+        _sync_user_secure_fields(new_user)
+        _sync_user_hashes(new_user, actor=user, details="create")
         db.add(new_user)
         db.commit()
         email_sent = send_welcome_email(email, name, employee_id, password)
@@ -491,6 +568,8 @@ def register_admin_routes(app):
         except Exception:
             pass
 
+        _sync_user_secure_fields(emp)
+        _sync_user_hashes(emp, actor=user, details="admin_update")
         db.commit()
         return RedirectResponse(url="/admin/manage_employees", status_code=303)
 
@@ -716,7 +795,7 @@ def register_admin_routes(app):
         return {"room_id": room_id, "message": "Room added successfully"}
 
     @app.post("/admin/add_department")
-    async def add_department(request: Request, name: str = Form(...), description: str = Form(...),
+    async def add_department(request: Request, name: str = Form(...), description: str = Form(...), prefix: str = Form(None),
                              user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "admin":
             raise HTTPException(status_code=403, detail="Access denied")
@@ -725,7 +804,7 @@ def register_admin_routes(app):
         if existing_dept:
             raise HTTPException(status_code=400, detail="Department already exists")
 
-        new_dept = Department(name=name, description=description)
+        new_dept = Department(name=name, description=description, prefix=prefix)
         db.add(new_dept)
         db.commit()
         return {"message": "Department added successfully"}

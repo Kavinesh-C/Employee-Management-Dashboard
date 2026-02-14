@@ -1,0 +1,53 @@
+[2026-02-14T03:38:14.183898Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T03:39:37.310764Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T03:39:46.725638Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T03:44:47.834051Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T03:45:21.974863Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T03:47:27.492223Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:00:47.410814Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:01:03.330681Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:01:14.736828Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:03:14.500884Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:04:42.119558Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:05:03.136610Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:06:29.973530Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:08:12.620006Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:10:53.390830Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T04:13:11.754468Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:12:32.988936Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:16:08.380729Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:17:42.841594Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:18:09.445871Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:30:40.702944Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:33:50.631481Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:38:43.177036Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:38:48.865669Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:39:09.000472Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:42:42.839243Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:43:38.212728Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:43:52.989835Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:46:19.198098Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:48:22.589774Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:52:26.118255Z] Created index: users.ix_users_department_hash
+[2026-02-14T06:52:26.135474Z] Created index: users.ix_users_role_hash
+[2026-02-14T06:52:26.151363Z] Created index: users.ix_users_employee_id_hash
+[2026-02-14T06:52:26.166586Z] Created index: users.ix_users_rfid_tag_hash
+[2026-02-14T06:52:26.183068Z] Created index: users.ix_users_email_hash
+[2026-02-14T06:52:26.200534Z] Created index: users.ix_users_name_hash
+[2026-02-14T06:52:26.296294Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T06:54:33.953438Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:11:09.487162Z] Added column: users.name_secure
+[2026-02-14T07:11:09.502645Z] Added column: users.email_secure
+[2026-02-14T07:11:09.519615Z] Added column: users.rfid_tag_secure
+[2026-02-14T07:11:09.533514Z] Added column: users.role_secure
+[2026-02-14T07:11:09.550457Z] Added column: users.department_secure
+[2026-02-14T07:11:09.632732Z] Schema sync complete: tables_created=0, columns_added=5, unique_index_repairs=0
+[2026-02-14T07:11:43.602655Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:15:09.678107Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:20:06.583425Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:24:53.012170Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:29:38.550325Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0
+[2026-02-14T07:30:00.797490Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0, tables_checked=29, tables_repaired=0
+[2026-02-14T07:32:10.382244Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0, tables_checked=29, tables_repaired=0
+[2026-02-14T07:39:07.761052Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0, tables_checked=29, tables_repaired=0
+[2026-02-14T07:39:13.525356Z] Schema sync complete: tables_created=0, columns_added=0, unique_index_repairs=0, tables_checked=29, tables_repaired=0

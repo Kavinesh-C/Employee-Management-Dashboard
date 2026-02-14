@@ -4,7 +4,8 @@ import traceback
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.exception_handlers import http_exception_handler
+from fastapi.exception_handlers import http_exception_handler, request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -13,8 +14,6 @@ from .app_context import templates
 
 def _is_html_page_request(request: Request) -> bool:
     if request.url.path.startswith("/api"):
-        return False
-    if request.method not in {"GET", "HEAD"}:
         return False
     accept = (request.headers.get("accept") or "").lower()
     return "text/html" in accept
@@ -61,6 +60,18 @@ def _detail_from_exc(exc: Any, fallback: str) -> str:
     return fallback
 
 
+def _detail_from_validation(exc: RequestValidationError) -> str:
+    errors = exc.errors() or []
+    if not errors:
+        return "Request validation failed."
+    first = errors[0]
+    field = ".".join(str(x) for x in first.get("loc", []) if x != "body")
+    msg = first.get("msg") or "Invalid input."
+    if field:
+        return f"{field}: {msg}"
+    return msg
+
+
 def _render_error_page(request: Request, status_code: int, detail: str, reason: str):
     return templates.TemplateResponse(
         "common/error_modal.html",
@@ -77,6 +88,15 @@ def _render_error_page(request: Request, status_code: int, detail: str, reason: 
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        if _is_html_page_request(request):
+            status_code = 422
+            reason = "The submitted form data is invalid."
+            detail = _detail_from_validation(exc)
+            return _render_error_page(request, status_code, detail, reason)
+        return await request_validation_exception_handler(request, exc)
+
     @app.exception_handler(HTTPException)
     async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
         if _is_html_page_request(request):

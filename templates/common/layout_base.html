@@ -190,6 +190,9 @@
         <a href="/admin/attendance-intelligence" class="nav-link">
           <i class="bi bi-exclamation-triangle"></i> Attendance Intelligence
         </a>
+        <a href="/admin/security" class="nav-link">
+          <i class="bi bi-shield-lock"></i> Security Center
+        </a>
 
       {% else %}
         <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-4 mb-2">Main</div>
@@ -1248,6 +1251,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let viewYear = new Date().getFullYear();
     let viewMonth = new Date().getMonth();
     let calendarSettingsLoaded = false;
+    let calendarSettingsPromise = null;
     let calendarDataPromise = null;
     let allCountries = [];
     let allStates = [];
@@ -1466,15 +1470,14 @@ pastBtn.addEventListener('click', () => switchTab('past'));
       buildMonthOptions();
       if (calendarMonth) calendarMonth.value = String(viewMonth);
       if (calendarYear) calendarYear.value = String(viewYear);
-      await prefetchCalendarData();
-      renderCalendar();
-      renderSelectedDayList(calendarDate?.value || '');
-      if (!calendarSettingsLoaded) {
-        loadCalendarSettings().finally(() => { calendarSettingsLoaded = true; });
-      }
+      const dataPromise = prefetchCalendarData();
+      ensureCalendarSettingsLoaded();
       if (!targetsLoaded) {
         loadCalendarTargets().finally(() => { targetsLoaded = true; });
       }
+      await dataPromise;
+      renderCalendar();
+      renderSelectedDayList(calendarDate?.value || '');
       if (calendarDataPromise) {
         calendarDataPromise.then(() => {
           renderCalendar();
@@ -1572,11 +1575,16 @@ pastBtn.addEventListener('click', () => switchTab('past'));
 
 
 if (calendarSettingsToggle && calendarSettings) {
-  calendarSettingsToggle.addEventListener('click', () => {
+  calendarSettingsToggle.addEventListener('click', async () => {
     calendarSettings.classList.remove('hidden');
     calendarSettings.classList.add('flex');
     // Optional: slight delay for a fade-in effect if you use opacity classes
-    calendarSettings.style.opacity = "1"; 
+    calendarSettings.style.opacity = "1";
+    if (!calendarSettingsLoaded && calendarCountry && calendarState) {
+      calendarCountry.innerHTML = '<option value="">Loading countries...</option>';
+      calendarState.innerHTML = '<option value="">Loading states...</option>';
+    }
+    await ensureCalendarSettingsLoaded();
   });
 }
 
@@ -1608,6 +1616,17 @@ if (calendarSettings) {
       renderStateOptions();
       calendarCountry.value = data.country || 'IN';
       calendarState.value = data.state || '';
+    }
+
+    function ensureCalendarSettingsLoaded() {
+      if (calendarSettingsLoaded) return Promise.resolve();
+      if (calendarSettingsPromise) return calendarSettingsPromise;
+      calendarSettingsPromise = loadCalendarSettings()
+        .finally(() => {
+          calendarSettingsLoaded = true;
+          calendarSettingsPromise = null;
+        });
+      return calendarSettingsPromise;
     }
 
     function renderCountryOptions(filterText = '') {
@@ -1754,9 +1773,11 @@ if (calendarSettings) {
       });
     }
 
-    // calendar settings load is deferred to calendar open
+    // Preload regional settings in background to reduce perceived delay.
+    setTimeout(() => { ensureCalendarSettingsLoaded(); }, 0);
   </script>
 
+  <script>window.__layoutCalendarManaged = true;</script>
   <script src="/static/script.js?v=20250206"></script>
   
 </body>

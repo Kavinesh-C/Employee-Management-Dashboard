@@ -30,3 +30,7 @@ def get_messages(user_id: int, other_id: int):
 
 def get_total_unread(user_id: int) -> int:
     return sum(unread_counts[user_id].values())
+
+
+def mark_all_read(user_id: int):
+    unread_counts[user_id].clear()

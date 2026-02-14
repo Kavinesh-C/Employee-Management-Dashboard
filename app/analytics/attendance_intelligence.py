@@ -72,7 +72,7 @@ def compute_behavior_metrics(db: Session, df: pd.DataFrame, employee_id: str | N
         user_obj = db.query(User).filter(User.employee_id == employee_id).first()
         if user_obj:
             target_user_id = user_obj.id
-            metrics["leaves_allowed"] = user_obj.paid_leaves_allowed
+            metrics["leaves_allowed"] = int(user_obj.paid_leaves_allowed or 0)
 
     # --- B. Database Counts ---
     cutoff_date = datetime.date.today() - datetime.timedelta(days=30)
@@ -97,13 +97,19 @@ def compute_behavior_metrics(db: Session, df: pd.DataFrame, employee_id: str | N
 
     # --- D. Future Leaves ---
     if employee_id:
-        metrics["leaves_remaining"] = max(0, metrics["leaves_allowed"] - metrics["leave_days"])
+        leaves_allowed = int(metrics.get("leaves_allowed") or 0)
+        leave_days = int(metrics.get("leave_days") or 0)
+        metrics["leaves_remaining"] = max(0, leaves_allowed - leave_days)
         upcoming_reqs = db.query(LeaveRequest).filter(
             LeaveRequest.employee_id == employee_id,
             LeaveRequest.status == 'Approved',
             LeaveRequest.start_date > datetime.date.today()
         ).all()
-        future_days = sum([(req.end_date - req.start_date).days + 1 for req in upcoming_reqs])
+        future_days = sum([
+            ((req.end_date - req.start_date).days + 1)
+            for req in upcoming_reqs
+            if req.start_date is not None and req.end_date is not None
+        ])
         metrics["upcoming_leave_days"] = future_days
         if future_days > 0:
             metrics["alerts"].append(f"ℹ️ Scheduled for {future_days} days of leave soon")
@@ -113,7 +119,11 @@ def compute_behavior_metrics(db: Session, df: pd.DataFrame, employee_id: str | N
             LeaveRequest.status == 'Approved',
             LeaveRequest.start_date > datetime.date.today()
         ).all()
-        total_future = sum([(req.end_date - req.start_date).days + 1 for req in all_upcoming])
+        total_future = sum([
+            ((req.end_date - req.start_date).days + 1)
+            for req in all_upcoming
+            if req.start_date is not None and req.end_date is not None
+        ])
         metrics["upcoming_leave_days"] = total_future
         if total_future > 5:
             metrics["alerts"].append(f"ℹ️ {total_future} total man-days of leave upcoming")

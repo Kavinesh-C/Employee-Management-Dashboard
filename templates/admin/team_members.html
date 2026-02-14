@@ -179,6 +179,16 @@ body {
             {% endfor %}
           </ul>
         </div>
+        <form action="/manager/team/member/remove" method="POST" class="mt-4 flex justify-end"
+              onsubmit="event.stopPropagation(); return confirm('Remove {{ member.name }} ({{ member.employee_id }}) from this team?');">
+          <input type="hidden" name="team_id" value="{{ team.id }}">
+          <input type="hidden" name="employee_id" value="{{ member.employee_id }}">
+          <button type="submit"
+                  class="px-3 py-2 text-[10px] font-black uppercase tracking-widest rounded bg-rose-100 text-rose-700 hover:bg-rose-200"
+                  onclick="event.stopPropagation();">
+            Remove Member
+          </button>
+        </form>
       </div>
       {% endfor %}
     </div>
@@ -316,8 +326,8 @@ body {
           + `<div class=\"text-xs text-slate-500 mb-1\">Completed: <span class=\"font-normal\">${task.completed_at || '-'} </span></div>\n`
           + `<div class=\"text-xs text-slate-500 mb-1\">Due: <span class=\"font-normal\">${task.due_date || '-'} </span></div>\n`
           + `<div class=\"flex gap-3 mt-2\">\n`
-          + `<button class=\"px-3 py-1 text-xs font-bold rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition\" onclick=\"editTask('${task.title}', ${idx}, '${task.status}')\">Edit</button>\n`
-          + `<button class=\"px-3 py-1 text-xs font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition\" onclick=\"deleteTask('${task.title}', ${idx}, '${task.status}')\">Delete</button>\n`
+          + `<button type=\"button\" class=\"px-3 py-1 text-xs font-bold rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition\" onclick=\"editTask(${idx})\">Edit</button>\n`
+          + `<button type=\"button\" class=\"px-3 py-1 text-xs font-bold rounded bg-red-100 text-red-700 hover:bg-red-200 transition\" onclick=\"deleteTask(${idx})\">Delete</button>\n`
           + `</div>\n`
         + `</div>`;
       });
@@ -345,7 +355,7 @@ body {
   }
 
 
-  function editTask(title, idx, status) {
+  function editTask(idx) {
     // Find the employeeId from the open modal context
     const employeeId = document.getElementById('memberTaskAssignee').value;
     const task = (memberTasksData[employeeId] || [])[idx];
@@ -359,6 +369,33 @@ body {
     editTaskDueDate.setAttribute('min', getTodayIsoDate());
     editTaskDueDate.value = task.due_date || '';
     document.getElementById('editTaskModal').classList.remove('hidden');
+  }
+
+  async function deleteTask(idx) {
+    const employeeId = document.getElementById('memberTaskAssignee').value;
+    const task = (memberTasksData[employeeId] || [])[idx];
+    if (!task) return;
+
+    if (!confirm('Are you sure you want to delete task: ' + task.title + '?')) {
+      return;
+    }
+
+    const resp = await fetch('/manager/delete_task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employee_id: employeeId,
+        idx: idx,
+        task_title: task.title || ''
+      })
+    });
+
+    if (resp.ok) {
+      alert('Task deleted.');
+      location.reload();
+    } else {
+      alert('Failed to delete task.');
+    }
   }
 
   function closeEditTaskModal() {
@@ -420,13 +457,6 @@ body {
       }
     }
   });
-
-  function deleteTask(title, idx, status) {
-    if (confirm('Are you sure you want to delete task: ' + title + '?')) {
-      alert('Delete functionality for task: ' + title + ' (index: ' + idx + ', status: ' + status + ')');
-      // Implement delete logic here
-    }
-  }
 
   function closeMemberTaskModal() {
     document.getElementById('memberTaskModal').classList.add('hidden');

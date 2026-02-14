@@ -1,10 +1,13 @@
-from fastapi import Depends, HTTPException, Form
+from fastapi import Depends, HTTPException, Form, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import datetime
+import os
 
 from .database import get_db
+from Security.session_security import get_session_timing
+from Security.security_config import SECURITY_SETTINGS
 from .models import (
     Attendance, UnknownRFID, User, AttendanceLog, AttendanceDaily,
     Meeting, ProjectMeetingAssignee, MeetingAttendance, Project, ProjectTask,
@@ -16,6 +19,39 @@ from .app_context import get_current_user, create_notification
 
 
 def register_api_routes(app):
+    def _runtime_int(name: str, default: int) -> int:
+        try:
+            return int(os.getenv(name, str(default)))
+        except (TypeError, ValueError):
+            return int(default)
+
+    @app.get("/api/session/timing")
+    async def api_session_timing(request: Request, user=Depends(get_current_user)):
+        session_max_age = _runtime_int("SESSION_MAX_AGE", int(SECURITY_SETTINGS.get("SESSION_MAX_AGE", 600)))
+        session_idle_timeout = _runtime_int("SESSION_IDLE_TIMEOUT", int(SECURITY_SETTINGS.get("SESSION_IDLE_TIMEOUT", 600)))
+        timing = get_session_timing(
+            request,
+            max_age_seconds=session_max_age,
+            idle_timeout_seconds=session_idle_timeout,
+        )
+        return JSONResponse(
+            {
+                "remaining": timing.get("remaining"),
+                "idle_remaining": timing.get("idle_remaining"),
+                "expires_at": timing.get("expires_at"),
+                "idle_expires_at": timing.get("idle_expires_at"),
+                "session_max_age": session_max_age,
+                "session_idle_timeout": session_idle_timeout,
+            }
+        )
+
+    @app.post("/api/session/touch")
+    async def api_session_touch(request: Request, user=Depends(get_current_user)):
+        now_ts = int(datetime.datetime.utcnow().timestamp())
+        request.session.setdefault("_created", now_ts)
+        request.session["_last_seen"] = now_ts
+        return JSONResponse({"status": "ok", "last_seen": now_ts})
+
     @app.post("/api/attendance")
     async def record_attendance(
         rfid_tag: str,
@@ -196,7 +232,7 @@ def register_api_routes(app):
     async def leave_count(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         if user.role != "admin":
             raise HTTPException(status_code=403, detail="Access denied")
-        pending = db.query(Notification).filter(Notification.title == "Leave request updated").count()
+        pending = db.query(LeaveRequest).filter(LeaveRequest.status == "Pending").count()
         return {"count": pending}
 
     @app.get("/api/month-hours")

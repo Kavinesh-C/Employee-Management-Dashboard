@@ -1,0 +1,58 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Security Event Detail | TeamSync{% endblock %}
+{% block page_title %}SECURITY_EVENT_DETAIL{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+  <div class="flex items-center justify-between gap-3">
+    <div>
+      <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ event.timestamp }}</div>
+      <h2 class="text-lg font-black uppercase tracking-widest text-slate-700 mt-1">{{ event.event }}</h2>
+    </div>
+    <a href="/admin/security#events" class="px-3 py-1 text-[10px] font-black uppercase tracking-widest border border-[var(--border)] bg-white text-slate-600 hover:border-blue-600 hover:text-blue-600">
+      Back To Events
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="border border-[var(--border)] bg-white p-4">
+      <div class="text-[10px] uppercase tracking-widest text-slate-400">Employee</div>
+      <div class="text-sm font-black text-slate-700 mt-1">{{ event.user_name or '-' }}</div>
+      <div class="text-xs text-slate-500 mt-1">ID: {{ event.user_id or '-' }}</div>
+    </div>
+    <div class="border border-[var(--border)] bg-white p-4">
+      <div class="text-[10px] uppercase tracking-widest text-slate-400">IP / Status</div>
+      <div class="text-sm font-black text-slate-700 mt-1">{{ event.ip or '-' }}</div>
+      <div class="text-xs text-slate-500 mt-1">{{ event.status or '-' }}</div>
+    </div>
+    <div class="border border-[var(--border)] bg-white p-4">
+      <div class="text-[10px] uppercase tracking-widest text-slate-400">Severity / Type</div>
+      <div class="text-sm font-black text-slate-700 mt-1">{{ event.severity or '-' }}</div>
+      <div class="text-xs text-slate-500 mt-1">{{ event.type or '-' }}</div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] bg-white p-5">
+    <div class="text-[10px] uppercase tracking-widest text-slate-400 mb-3">Complete Details</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-600">
+      <div><span class="font-semibold">Triggered Security:</span> {{ event.rule or '-' }}</div>
+      <div><span class="font-semibold">Source Section:</span> {{ event.source_section or '-' }}</div>
+      <div><span class="font-semibold">Request ID:</span> {{ event.request_id or '-' }}</div>
+      <div><span class="font-semibold">Internal User ID:</span> {{ event.internal_user_id or '-' }}</div>
+      <div><span class="font-semibold">Method:</span> {{ event.method or '-' }}</div>
+      <div><span class="font-semibold">Path:</span> {{ event.path or '-' }}</div>
+      <div class="md:col-span-2"><span class="font-semibold">Query:</span> {{ event.query or '-' }}</div>
+      <div class="md:col-span-2"><span class="font-semibold">Reason:</span> {{ event.trigger_reason or '-' }}</div>
+      <div class="md:col-span-2"><span class="font-semibold">Exact:</span> {{ event.exact_details or '-' }}</div>
+      <div class="md:col-span-2"><span class="font-semibold">Details:</span> <span class="whitespace-pre-line">{{ event.details or '-' }}</span></div>
+      <div class="md:col-span-2"><span class="font-semibold">Evidence:</span> <span class="whitespace-pre-line">{{ event.evidence or '-' }}</span></div>
+      <div><span class="font-semibold">Threat Intel:</span> {{ event.threat_intel or '-' }}</div>
+      <div><span class="font-semibold">MITRE:</span> {{ event.mitre or '-' }}</div>
+      <div><span class="font-semibold">Hits:</span> {{ event.hits or '-' }}</div>
+      <div><span class="font-semibold">Occurred:</span> {{ event.occurred_at or '-' }}</div>
+      <div class="md:col-span-2"><span class="font-semibold">Raw Log:</span> <span class="whitespace-pre-line break-words">{{ event.raw_log or '-' }}</span></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
