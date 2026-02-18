@@ -31,4 +31,5 @@ reportlab==4.2.2
 holidays==0.55
 
 # Required for FastAPI and middleware
-starlette==0.32.0
+starlette==0.27.0
+
