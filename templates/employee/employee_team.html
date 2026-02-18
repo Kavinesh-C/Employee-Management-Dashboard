@@ -1,0 +1,561 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}TeamSync | Executive Overview{% endblock %}
+
+{% block content %}
+<style>
+    :root {
+        --canvas: #f8fafc;
+        --ink: #020617;
+        --slate-900: #0f172a;
+        --blue-modern: #4f46e5;
+        --glass-border: rgba(15, 23, 42, 0.08);
+        --accent-soft: #f1f5f9;
+    }
+
+    body { 
+        background-color: var(--canvas); 
+        color: var(--ink); 
+        font-family: 'Inter', -apple-system, sans-serif;
+        letter-spacing: -0.01em;
+    }
+
+    /* Minimalist Containers */
+    .studio-card {
+        background: white;
+        border: 1px solid var(--glass-border);
+        border-radius: 1.25rem;
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Executive Header */
+    .exec-header {
+        background: var(--slate-900);
+        color: white;
+        padding: 4rem 3rem;
+        border-radius: 2rem;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .exec-header::before {
+        content: "";
+        position: absolute;
+        top: 0; right: 0;
+        width: 40%; height: 100%;
+        background: linear-gradient(225deg, rgba(79, 70, 229, 0.2) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .exec-header > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Avatar Design */
+    .avatar-exec {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        background: var(--accent-soft);
+        color: var(--slate-900);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 0.9rem;
+    }
+
+    .avatar-leader {
+        background: var(--blue-modern);
+        color: white;
+        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
+    }
+
+    /* Status Dot */
+    .pulse-indicator {
+        width: 6px; height: 6px;
+        border-radius: 50%;
+        background: #10b981;
+        position: relative;
+    }
+
+    .pulse-indicator::after {
+        content: "";
+        position: absolute;
+        width: 100%; height: 100%;
+        background: inherit;
+        border-radius: inherit;
+        animation: pulse-ring 1.5s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+    }
+
+    @keyframes pulse-ring {
+        0% { transform: scale(.7); opacity: 1; }
+        80%, 100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* Initiative Cards */
+    .initiative-card {
+        padding: 1.5rem;
+        border: 1px solid var(--glass-border);
+        border-radius: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .initiative-card:hover {
+        border-color: var(--blue-modern);
+        background: #fcfcfd;
+        transform: translateY(-2px);
+    }
+
+    /* Task Row */
+    .task-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        padding: 1rem;
+        align-items: center;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .task-row:last-child { border-bottom: none; }
+
+    /* Buttons */
+    .btn-exec {
+        background: white;
+        color: var(--slate-900);
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.75rem;
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        transition: all 0.2s;
+    }
+
+    .btn-exec:hover {
+        background: var(--blue-modern);
+        color: white;
+        transform: scale(1.02);
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+</style>
+
+<div class="max-w-7xl mx-auto p-6 space-y-12">
+
+    {% if teams_data %}
+    {% for item in teams_data %}
+    
+    <header class="exec-header flex flex-col md:flex-row justify-between items-end gap-6 shadow-xl">
+        <div class="space-y-4">
+            <div class="flex items-center gap-3">
+                <span class="px-3 py-1 bg-white/10 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest rounded-full">Unit Overview</span>
+                <span class="text-blue-300 text-xs font-mono">CODE: {{ item.team.id|default('TS-01') }}</span>
+            </div>
+            <h1 class="text-6xl font-black tracking-tight text-white">{{ item.team.name }}</h1>
+            <p class="text-slate-400 text-xl font-light">Lead Division: <span class="text-blue-200 font-medium">{{ item.team.department }}</span></p>
+        </div>
+
+        <div class="flex items-center gap-8">
+            <div class="text-right">
+                <p class="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em]">Personnel</p>
+                <p class="text-4xl font-bold text-white">{{ item.members|length }}</p>
+            </div>
+            {% if item.team.leader_id == user.id %}
+            <a href="/leader/dashboard" class="btn-exec shadow-lg">Leader Console</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="grid grid-cols-12 gap-10">
+        
+        <div class="col-span-12 lg:col-span-4 space-y-8">
+            <section>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
+                    <span class="h-px w-8 bg-slate-200"></span> Leadership
+                </h3>
+                <div class="studio-card p-6 border-l-4 border-l-blue-600">
+                    {% if item.leader %}
+                    <div class="flex items-center gap-4">
+                        <div class="avatar-exec avatar-leader">
+                            {{ item.leader.name[0] }}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-slate-900 leading-none">{{ item.leader.name }}</h4>
+                            <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-2">Team Lead</p>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-sm text-slate-400 italic">No lead assigned.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section>
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                        <span class="h-px w-8 bg-slate-200"></span> Personnel
+                    </h3>
+                    <select id="memberStatusFilter" class="bg-transparent text-[10px] font-black border-none text-slate-400 focus:ring-0 cursor-pointer">
+                        <option value="all">ALL MEMBERS</option>
+                        <option value="active">ACTIVE ONLY</option>
+                    </select>
+                </div>
+                <div class="space-y-3 max-h-[480px] overflow-y-auto custom-scroll pr-3">
+                    {% for m in item.members %}
+                    {% if not item.leader or m.id != item.leader.id %}
+                    <div class="studio-card p-4 flex items-center justify-between hover:bg-slate-50/50" data-member-status="{{ 'active' if m.is_active else 'inactive' }}">
+                        <div class="flex items-center gap-4">
+                            <div class="avatar-exec">
+                                {{ m.name[0] }}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">{{ m.name }}</p>
+                                <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tight">{{ m.role|default('Team Associate') }}</p>
+                            </div>
+                        </div>
+                        {% if m.is_active %}
+                        <div class="pulse-indicator" title="Active"></div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+
+        <div class="col-span-12 lg:col-span-8 space-y-12">
+            
+            <section>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
+                    <span class="h-px w-8 bg-slate-200"></span> Strategic Initiatives
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {% set team_projects = projects_by_team.get(item.team.id, []) %}
+                    {% for project in team_projects %}
+                    <div class="initiative-card studio-card group" onclick="openProjectModal(this)" 
+                         data-project-name="{{ project.name }}" 
+                         data-project-status="{{ project.status }}"
+                         data-project-description="{{ project.description }}"
+                         data-project-task-items='{{ project_tasks_map.get(project.id, []) | tojson }}'>
+                        <div class="flex justify-between items-start mb-6">
+                            <span class="text-[8px] font-black tracking-widest uppercase px-3 py-1 bg-slate-100 text-slate-500 rounded-full">{{ project.status }}</span>
+                            <div class="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </div>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-900 mb-2">{{ project.name }}</h4>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-6">{{ project.description|default('Analysis of active unit objectives and key results.') }}</p>
+                        
+                        <div class="pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <div class="flex -space-x-2">
+                                {% set project_assignees = project_assignees_map.get(project.id, []) %}
+                                {% for assignee in project_assignees[:3] %}
+                                    {% if assignee.has_photo_blob %}
+                                        <img
+                                            src="/employee/photo/{{ assignee.employee_id }}"
+                                            alt="{{ assignee.name }}"
+                                            title="{{ assignee.name }}"
+                                            class="w-7 h-7 rounded-full border-2 border-white object-cover bg-slate-100" />
+                                    {% elif assignee.photo_path %}
+                                        <img
+                                            src="{{ assignee.photo_path }}"
+                                            alt="{{ assignee.name }}"
+                                            title="{{ assignee.name }}"
+                                            class="w-7 h-7 rounded-full border-2 border-white object-cover bg-slate-100" />
+                                    {% else %}
+                                        <div
+                                            title="{{ assignee.name }}"
+                                            class="w-7 h-7 rounded-full border-2 border-white bg-blue-100 text-[10px] font-black text-blue-700 flex items-center justify-center uppercase">
+                                            {{ assignee.name[0] if assignee.name else '?' }}
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if project_assignees|length > 3 %}
+                                    <div class="w-7 h-7 rounded-full border-2 border-white bg-slate-200 text-[9px] font-black text-slate-600 flex items-center justify-center">
+                                        +{{ project_assignees|length - 3 }}
+                                    </div>
+                                {% elif project_assignees|length == 0 %}
+                                    <div class="w-7 h-7 rounded-full border-2 border-white bg-slate-100"></div>
+                                {% endif %}
+                            </div>
+                            <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">{{ project_task_counts.get(project.id, 0) }} LOGS</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section>
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
+                    <span class="h-px w-8 bg-slate-200"></span> Operational Backlog
+                </h3>
+                <div class="studio-card overflow-hidden">
+                    <div class="bg-slate-50/50 task-row">
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Description</span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Urgency</span>
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Phase</span>
+                    </div>
+                    {% for task in assigned_tasks %}
+                    <div class="task-row hover:bg-slate-50 transition-colors">
+                        <div>
+                            <p class="text-sm font-bold text-slate-800">{{ task.title }}</p>
+                            <p class="text-[10px] text-slate-400 font-medium">{{ task.project.name if task.project else 'General Assignment' }}</p>
+                        </div>
+                        <div>
+                            <span class="text-[9px] font-black px-2 py-1 rounded-md
+                                {% if task.priority == 'high' %} text-red-600 bg-red-50 {% else %} text-blue-600 bg-blue-50 {% endif %}">
+                                {{ task.priority|upper }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-slate-600 capitalize">{{ task.status }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="max-w-xl mx-auto text-center py-32 space-y-6 studio-card">
+        <h2 class="text-3xl font-black text-slate-900 tracking-tight">Assignment Pending</h2>
+        <p class="text-slate-500 max-w-sm mx-auto font-light">Your operational profile is currently in the queue. Please verify with System Administration for unit placement.</p>
+    </div>
+    {% endif %}
+
+</div>
+
+<div id="projectDetailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] p-12 shadow-2xl relative">
+        <button onclick="closeProjectModal()" class="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+
+        <div class="space-y-8">
+            <div>
+                <span class="text-[10px] font-black text-blue-600 uppercase tracking-[0.3em]">Project Focus</span>
+                <h3 id="projectModalName" class="text-4xl font-black text-slate-900 mt-2"></h3>
+                <p id="projectModalMeta" class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-4"></p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-6">
+                <div class="p-6 bg-slate-50 rounded-2xl">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Completion Status</p>
+                    <p id="projectModalTasks" class="text-lg font-bold text-slate-900"></p>
+                </div>
+                <div class="p-6 bg-slate-50 rounded-2xl">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Target Timeline</p>
+                    <p id="projectDeadlineDisplay" class="text-lg font-bold text-slate-900">Q1 Deployment</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Operational Scope</p>
+                <p id="projectModalDescription" class="text-sm text-slate-600 leading-relaxed font-light"></p>
+            </div>
+
+            <div class="pt-8">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">Milestone Logs</p>
+                <div id="projectModalTasksList" class="space-y-3 max-h-64 overflow-y-auto custom-scroll pr-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filter Logic
+        const filter = document.getElementById('memberStatusFilter');
+        if (filter) {
+            const cards = document.querySelectorAll('[data-member-status]');
+            filter.addEventListener('change', () => {
+                const val = filter.value;
+                cards.forEach(c => {
+                    c.style.display = (val === 'all' || c.dataset.memberStatus === val) ? 'flex' : 'none';
+                });
+            });
+        }
+
+        // Project Cards Logic
+        document.querySelectorAll('.initiative-card').forEach(card => {
+            card.addEventListener('click', () => openProjectModal(card));
+        });
+    });
+
+    function openProjectModal(card) {
+        const data = {
+            name: card.dataset.projectName,
+            status: card.dataset.projectStatus,
+            desc: card.dataset.projectDescription,
+            tasks: JSON.parse(card.dataset.projectTaskItems || '[]')
+        };
+
+        document.getElementById('projectModalName').textContent = data.name;
+        document.getElementById('projectModalMeta').textContent = `Phase: ${data.status} • Critical Asset`;
+        document.getElementById('projectModalDescription').textContent = data.desc;
+        
+        const done = data.tasks.filter(t => t.status === 'completed').length;
+        document.getElementById('projectModalTasks').textContent = `${done} / ${data.tasks.length} Resolved`;
+
+        const list = document.getElementById('projectModalTasksList');
+        list.innerHTML = data.tasks.map(t => `
+            <div class="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl">
+                <span class="text-xs font-bold text-slate-800">${t.title}</span>
+                <span class="text-[9px] font-black uppercase ${t.status === 'completed' ? 'text-emerald-500' : 'text-slate-300'}">${t.status}</span>
+            </div>
+        `).join('') || '<p class="text-xs text-slate-400 italic">No milestones defined.</p>';
+
+        document.getElementById('projectDetailModal').classList.remove('hidden');
+    }
+
+    function closeProjectModal() {
+        document.getElementById('projectDetailModal').classList.add('hidden');
+    }
+</script>
+
+
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const filter = document.getElementById('memberStatusFilter');
+    if (!filter) return;
+
+    const cards = document.querySelectorAll('[data-member-status]');
+
+    function applyFilter() {
+      const value = filter.value;
+      cards.forEach(card => {
+        const status = card.getAttribute('data-member-status');
+        const shouldShow = value === 'all' || status === value;
+        card.style.display = shouldShow ? '' : 'none';
+      });
+    }
+
+    filter.addEventListener('change', applyFilter);
+    applyFilter();
+  });
+
+  function openProjectModal(card) {
+    const name = card.getAttribute('data-project-name') || '';
+    const status = card.getAttribute('data-project-status') || 'active';
+    const department = card.getAttribute('data-project-department') || 'N/A';
+    const deadline = card.getAttribute('data-project-deadline') || 'TBD';
+    const tasks = card.getAttribute('data-project-tasks') || '0';
+    const description = card.getAttribute('data-project-description') || 'No description provided';
+    const taskItemsRaw = card.getAttribute('data-project-task-items') || '[]';
+    let taskItems = [];
+    try {
+      taskItems = JSON.parse(taskItemsRaw);
+    } catch (e) {
+      taskItems = [];
+    }
+
+    window.activeProjectCard = card;
+    window.activeProjectTasks = taskItems;
+
+    document.getElementById('projectModalName').textContent = name;
+    document.getElementById('projectModalMeta').textContent = `Status: ${status} • Dept: ${department} • Deadline: ${deadline}`;
+    const completedCount = taskItems.filter(item => item.status === 'completed').length;
+    document.getElementById('projectModalTasks').textContent = `${completedCount}/${taskItems.length} tasks completed`;
+    document.getElementById('projectModalDescription').textContent = description;
+    const list = document.getElementById('projectModalTasksList');
+    if (list) {
+      if (taskItems.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-500">No tasks in this project</p>';
+      } else {
+        list.innerHTML = taskItems.map(item => {
+          const deadlineLabel = item.deadline ? `Deadline: ${item.deadline}` : 'No deadline';
+          const isDone = item.status === 'completed';
+          const actionMarkup = isDone
+            ? '<span class="text-[9px] font-black uppercase tracking-widest text-emerald-600">Completed</span>'
+            : `
+              <button type="button"
+                      class="text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800"
+                      data-task-id="${item.id}"
+                      onclick="markProjectTaskComplete(this)">
+                Mark Complete
+              </button>
+            `;
+          return `
+            <div class="border border-slate-200 rounded-lg p-3">
+              <div class="flex items-center justify-between">
+                <div class="font-bold text-slate-900">${item.title}</div>
+                ${actionMarkup}
+              </div>
+              <div class="text-xs text-slate-600 mt-2">${item.description || ''}</div>
+              <div class="text-[10px] text-slate-400 mt-2">${deadlineLabel}</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    document.getElementById('projectDetailModal').classList.remove('hidden');
+  }
+
+  function closeProjectModal() {
+    document.getElementById('projectDetailModal').classList.add('hidden');
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.project-card').forEach(card => {
+      card.addEventListener('click', function() {
+        openProjectModal(this);
+      });
+      card.addEventListener('touchstart', function() {
+        openProjectModal(this);
+      }, { passive: true });
+    });
+  });
+
+  function markProjectTaskComplete(button) {
+    const taskId = button.getAttribute('data-task-id');
+    if (!taskId) return;
+
+    button.disabled = true;
+    button.classList.add('opacity-50', 'cursor-not-allowed');
+
+    const formData = new FormData();
+    formData.append('task_id', taskId);
+
+    fetch('/employee/project_tasks/complete', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to update task');
+        }
+        const parent = button.parentElement;
+        parent.innerHTML = '<span class="text-[9px] font-black uppercase tracking-widest text-emerald-600">Completed</span>';
+
+        if (window.activeProjectTasks) {
+          window.activeProjectTasks = window.activeProjectTasks.map(item => {
+            if (String(item.id) === String(taskId)) {
+              return { ...item, status: 'completed' };
+            }
+            return item;
+          });
+        }
+
+        if (window.activeProjectCard && window.activeProjectTasks) {
+          window.activeProjectCard.setAttribute('data-project-task-items', JSON.stringify(window.activeProjectTasks));
+          const doneCount = window.activeProjectTasks.filter(item => item.status === 'completed').length;
+          document.getElementById('projectModalTasks').textContent = `${doneCount}/${window.activeProjectTasks.length} tasks completed`;
+        }
+      })
+      .catch(() => {
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+        alert('Unable to mark task complete. Please try again.');
+      });
+  }
+</script>
+
+{% endblock %}

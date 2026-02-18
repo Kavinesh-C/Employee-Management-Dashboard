@@ -1,0 +1,231 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Attendance Overview | TeamSync{% endblock %}
+
+{% block page_title %}Operational / Attendance Registry{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8 space-y-10">
+
+  {# Key Metrics Bar #}
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-px bg-slate-200 border border-slate-200 shadow-sm">
+    <div class="bg-white p-8">
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Confirmed Presence</p>
+      <div class="flex items-baseline gap-3">
+        <span class="text-5xl font-light text-slate-900 tracking-tighter">{{ present_count }}</span>
+        <span class="text-xs font-bold text-emerald-600 uppercase tracking-widest">Active</span>
+      </div>
+    </div>
+
+    <div class="bg-white p-8 border-l border-slate-100">
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Current Absentees</p>
+      <div class="flex items-baseline gap-3">
+        <span class="text-5xl font-light text-slate-900 tracking-tighter">{{ absent_count }}</span>
+        <span class="text-xs font-bold text-rose-500 uppercase tracking-widest">Missing</span>
+      </div>
+    </div>
+
+    <div class="bg-white p-8 border-l border-slate-100">
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Unrecognized Entries</p>
+      <div class="flex items-baseline gap-3">
+        <span class="text-5xl font-light text-slate-900 tracking-tighter">{{ unknown_rfids|length }}</span>
+        <span class="text-xs font-bold text-amber-500 uppercase tracking-widest">Flagged</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+    
+    {# Absentee Sidebar #}
+    <div class="lg:col-span-4 space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-900 pb-3">
+        <h3 class="text-xs font-black uppercase tracking-widest text-slate-900">Absentee Registry</h3>
+          <select id="departmentSelect"
+            class="bg-white border border-slate-300 px-3 py-2
+                  text-[10px] font-bold uppercase tracking-wider
+                  text-slate-700 focus:ring-0 cursor-pointer">
+          </select>
+
+      </div>
+
+      <div class="max-h-[600px] overflow-y-auto custom-scrollbar">
+        <ul id="absenteeList" class="space-y-px bg-slate-100 border border-slate-100">
+          {# Populated via JS #}
+        </ul>
+      </div>
+    </div>
+
+    {# Live Presence Table #}
+    <div class="lg:col-span-8 space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-900 pb-3">
+        <h3 class="text-xs font-black uppercase tracking-widest text-slate-900">Live Access Log</h3>
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Real-time Sync</span>
+      </div>
+
+      <div class="bg-white border border-slate-200 overflow-hidden shadow-sm">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200">
+              <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Personnel</th>
+              <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Sector</th>
+              <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Location</th>
+              <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Check-in</th>
+              <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-900 text-right">Data</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for e in present %}
+            <tr class="hover:bg-slate-50 transition-colors group">
+              <td class="px-6 py-4">
+                <div class="text-sm font-bold text-slate-900">{{ e.name }}</div>
+                <div class="text-[10px] font-medium text-slate-400 font-mono">ID: {{ e.employee_id }}</div>
+              </td>
+              <td class="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{{ e.department }}</td>
+              <td class="px-6 py-4">
+                <span class="text-[10px] font-bold text-slate-700 border border-slate-200 px-2 py-0.5 inline-block">
+                  ROOM {{ e.room_no }}
+                </span>
+              </td>
+              <td class="px-6 py-4 text-xs font-bold text-slate-900">{{ e.entry_time.strftime("%H:%M") }}</td>
+              <td class="px-6 py-4 text-right">
+                <button class="text-[10px] font-black uppercase tracking-tighter text-indigo-600 hover:text-slate-900 transition-colors underline decoration-2 underline-offset-4"
+                        onclick="showLogs('{{e.employee_id}}','{{e.name}}')">
+                  View History
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Sharp Professional Modal #}
+<div id="logsModal" class="fixed inset-0 bg-slate-900/80 hidden items-center justify-center p-4 z-[200] backdrop-blur-sm">
+  <div class="bg-white p-10 w-full max-w-lg relative shadow-2xl">
+    <div class="flex justify-between items-start mb-8">
+        <div>
+            <h3 id="modalTitle" class="text-xl font-light text-slate-900 leading-tight"></h3>
+            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Daily Access Transcript</p>
+        </div>
+        <button onclick="closeModal()" class="text-slate-300 hover:text-slate-900 transition-colors">
+            <i class="bi bi-x-lg text-2xl"></i>
+        </button>
+    </div>
+    
+    <div id="modalBody" class="space-y-4 max-h-[400px] overflow-y-auto mb-10 pr-4">
+        {# Logs populated via JS #}
+    </div>
+
+    <button onclick="closeModal()" class="w-full py-4 bg-slate-900 text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all">
+      Return to Dashboard
+    </button>
+  </div>
+</div>
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; }
+</style>
+
+<script>
+  
+function loadDepartments() {
+  fetch("/api/departments")
+    .then(r => r.json())
+    .then(data => {
+      const select = document.getElementById("departmentSelect");
+      select.innerHTML = "";
+
+      if (!data.departments || data.departments.length === 0) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No Departments";
+        select.appendChild(option);
+        const ul = document.getElementById("absenteeList");
+        ul.innerHTML = "<div class='py-12 text-center bg-white border border-dashed border-slate-200 text-slate-400 text-[10px] uppercase font-bold tracking-widest'>No Departments Available</div>";
+        return;
+      }
+
+      data.departments.forEach(dep => {
+        const option = document.createElement("option");
+        option.value = dep;
+        option.textContent = dep;
+        select.appendChild(option);
+      });
+
+      // Auto-load absentees for first department
+      if (data.departments.length > 0) {
+        loadAbsentees();
+      }
+    });
+}
+  
+function loadAbsentees(){
+  let dept = document.getElementById("departmentSelect").value;
+  if (!dept) {
+    let ul = document.getElementById("absenteeList");
+    ul.innerHTML = "<div class='py-12 text-center bg-white border border-dashed border-slate-200 text-slate-400 text-[10px] uppercase font-bold tracking-widest'>Select A Department</div>";
+    return;
+  }
+  fetch(`/api/absentees?department=${encodeURIComponent(dept)}`)
+  .then(r=>r.json())
+  .then(data=>{
+    let ul = document.getElementById("absenteeList");
+    ul.innerHTML = "";
+    if(data.absentees.length === 0){
+      ul.innerHTML = "<div class='py-12 text-center bg-white border border-dashed border-slate-200 text-slate-400 text-[10px] uppercase font-bold tracking-widest'>No Absentees Detected</div>";
+    } else {
+      data.absentees.forEach(a=>{
+        ul.innerHTML += `
+            <li class="flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors">
+                <div>
+                    <p class="text-xs font-bold text-slate-900 uppercase">${a.name}</p>
+                    <p class="text-[9px] font-bold text-slate-400 font-mono tracking-tighter">REF: ${a.employee_id}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[9px] font-black text-rose-500 uppercase">OFF-SITE</span>
+                    <span class="w-1.5 h-1.5 bg-rose-500"></span>
+                </div>
+            </li>`;
+      });
+    }
+  });
+}
+document.getElementById("departmentSelect").addEventListener("change", loadAbsentees);
+loadDepartments();
+
+function showLogs(id, name){
+  const modal = document.getElementById("logsModal");
+  document.getElementById("modalTitle").innerHTML = `Activity for <span class="font-bold">${name}</span>`;
+
+  fetch(`/api/employee_logs?employee_id=${id}`)
+  .then(r=>r.json())
+  .then(data=>{
+    let body = document.getElementById("modalBody");
+    body.innerHTML = "";
+    if(data.logs.length === 0){
+      body.innerHTML = "<div class='text-center py-8 text-slate-400 text-xs italic border border-dashed border-slate-200'>No activity recorded for this period.</div>";
+    } else {
+      data.logs.forEach(l=>{
+        body.innerHTML += `
+            <div class="p-4 border border-slate-100 bg-slate-50/50 flex justify-between items-center group hover:border-slate-300 transition-all">
+                <div class="flex items-center gap-4">
+                    <i class="bi bi-clock-history text-slate-300"></i>
+                    <span class="text-xs font-bold text-slate-700 font-mono tracking-tight">${l.in} <span class="text-slate-300 mx-1">—</span> ${l.out}</span>
+                </div>
+                <span class="text-[10px] font-black text-slate-900 uppercase border-b-2 border-slate-200">RM ${l.room}</span>
+            </div>`;
+      });
+    }
+    modal.classList.replace("hidden","flex");
+  });
+}
+function closeModal(){
+  document.getElementById("logsModal").classList.replace("flex","hidden");
+}
+</script>
+{% endblock %}

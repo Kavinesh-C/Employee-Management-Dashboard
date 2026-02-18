@@ -1,0 +1,97 @@
+<div id="editTaskModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="w-full max-w-lg mx-4">
+        <div class="bg-white rounded-2xl shadow-2xl border-2 border-blue-200 p-8 relative">
+            <button type="button" onclick="document.getElementById('editTaskModal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-xl">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 class="text-2xl font-black mb-6 text-blue-700">Edit Task</h3>
+            <form id="editTaskForm" method="POST" class="space-y-4">
+                <input type="hidden" name="task_id" id="editTaskId">
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Task Title</label>
+                    <input type="text" name="title" id="editTaskTitle" required class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Task Description</label>
+                    <textarea name="description" id="editTaskDescription" rows="3" class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900"></textarea>
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Due Date</label>
+                    <input type="date" name="deadline" id="editTaskDeadline" required class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                </div>
+                <div>
+                    <label class="text-xs font-bold ml-2 text-gray-700">Assign To</label>
+                    <select name="assign_to_employee_id" id="editTaskAssignees" multiple size="4" class="w-full px-4 py-3 outline-none border border-gray-300 rounded-lg bg-white text-gray-900">
+                        <!-- Options will be filled by JS -->
+                    </select>
+                    <div class="text-xs text-gray-500 mt-1">Click to select multiple employees.</div>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" onclick="document.getElementById('editTaskModal').classList.add('hidden')" class="px-6 py-2 text-gray-500 hover:text-gray-900 font-bold">Cancel</button>
+                    <button type="submit" class="neo-btn px-8 py-2 text-green-600">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+function getTodayIsoDate() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function openEditTaskModal(task) {
+    document.getElementById('editTaskId').value = task.id;
+    document.getElementById('editTaskTitle').value = task.title;
+    document.getElementById('editTaskDescription').value = task.description || '';
+    const deadlineInput = document.getElementById('editTaskDeadline');
+    deadlineInput.setAttribute('min', getTodayIsoDate());
+    deadlineInput.value = task.deadline ? task.deadline.split('T')[0] : '';
+    // Populate assignees
+    var select = document.getElementById('editTaskAssignees');
+    select.innerHTML = '';
+    for (const member of window.leaderTeamMembers) {
+        var option = document.createElement('option');
+        option.value = member.employee_id;
+        option.textContent = member.name;
+        if (task.assignees && task.assignees.some(a => a.employee && a.employee.employee_id === member.employee_id)) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+    document.getElementById('editTaskModal').classList.remove('hidden');
+}
+
+// Handle form submit
+document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('editTaskForm');
+    var deadlineInput = document.getElementById('editTaskDeadline');
+    if (deadlineInput) {
+        deadlineInput.setAttribute('min', getTodayIsoDate());
+    }
+    if (form) {
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            var formData = new FormData(form);
+            fetch('/leader/edit_task', {
+                method: 'POST',
+                body: formData
+            }).then(resp => {
+                if (resp.redirected) {
+                    window.location.href = resp.url;
+                } else {
+                    window.location.reload();
+                }
+            });
+        };
+    }
+    // Also close modal on cancel
+    var cancelBtns = form.querySelectorAll('button[type="button"]');
+    cancelBtns.forEach(btn => btn.addEventListener('click', function() {
+        document.getElementById('editTaskModal').classList.add('hidden');
+    }));
+});
+</script>

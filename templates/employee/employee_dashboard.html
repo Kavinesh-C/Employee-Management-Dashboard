@@ -1,0 +1,284 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}My Workspace{% endblock %}
+
+{% block content %}
+
+
+<style>
+/* =========================================
+   PREMIUM CORPORATE WORKSPACE STYLES
+   ========================================= */
+
+:root {
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(226, 232, 240, 0.6);
+  --corp-navy: #0f172a;
+  --accent-blue: #3b82f6;
+  --premium-slate: #64748b;
+  --bg-main: #f8fafc;
+}
+
+body {
+  background-color: var(--bg-main);
+}
+
+.dashboard-bg {
+  padding-bottom: 60px;
+  perspective: 1000px; /* For subtle depth */
+}
+
+/* Base Card Refinement */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 
+    0 1px 3px 0 rgba(0, 0, 0, 0.02), 
+    0 10px 25px -5px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass:hover {
+  transform: translateY(-2px);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.08);
+}
+
+/* Profile Section Styling */
+.avatar-ring {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+}
+
+.role-badge {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(59, 130, 246, 0.1);
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+/* Typography Scale */
+.stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  font-size: 0.65rem;
+  color: var(--premium-slate);
+}
+
+.stat-value {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--corp-navy);
+}
+
+/* Button Refinement */
+.quick-btn {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.quick-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation */
+.reveal {
+  opacity: 0;
+  transform: translateY(15px);
+  animation: slideUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes slideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+
+</style>
+
+<div class="dashboard-bg max-w-7xl mx-auto space-y-6 p-4">
+
+  <header class="glass reveal rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8">
+    {% if user.photo_blob %}
+      <img src="/employee/photo/{{ user.employee_id }}" alt="{{ user.name }}" class="w-20 h-20 avatar-ring rounded-3xl object-cover rotate-3" />
+    {% elif user.photo_path %}
+      <img src="{{ user.photo_path }}" alt="{{ user.name }}" class="w-20 h-20 avatar-ring rounded-3xl object-cover rotate-3" />
+    {% else %}
+      <div class="w-20 h-20 avatar-ring rounded-3xl flex items-center justify-center text-3xl text-white font-black rotate-3">
+        <span class="-rotate-3">{{ user.name[0] }}</span>
+      </div>
+    {% endif %}
+
+    <div class="text-center md:text-left flex-1">
+      <div class="flex flex-col md:flex-row md:items-center gap-3">
+        <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">
+          Welcome back, {{ user.name.split(' ')[0] }}
+        </h2>
+        <span class="role-badge w-fit mx-auto md:mx-0 text-[10px] px-3 py-1 rounded-full">
+          {{ user.role }}
+        </span>
+      </div>
+      <p class="text-slate-500 mt-1 font-medium">
+        {{ user.department }} Division <span class="mx-2 text-slate-300">•</span> Employee ID: <span class="text-slate-700 font-bold">{{ user.employee_id }}</span>
+      </p>
+    </div>
+
+    <div class="hidden lg:block h-12 w-px bg-slate-200"></div>
+
+    <div class="text-center md:text-right">
+      <p class="stat-label">System Access</p>
+      <p class="text-sm font-bold text-slate-800 mt-1">RFID: {{ user.rfid_tag }}</p>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 reveal delay-1">
+
+    <div class="glass rounded-2xl p-5">
+      <p class="stat-label">Productive Hours</p>
+      <p class="mt-2 text-3xl stat-value">
+        {{ total_hours }} <span class="text-sm font-medium text-slate-400">HRS</span>
+      </p>
+    </div>
+
+    <div class="glass rounded-2xl p-5 border-l-4 border-l-blue-500">
+      <p class="stat-label">Pending Tasks</p>
+      <p class="mt-2 text-3xl stat-value text-blue-600">
+        {{ pending_tasks_count|default(0) }}
+      </p>
+    </div>
+
+    <div class="glass rounded-2xl p-5">
+      <p class="stat-label">Leave Balance</p>
+      <p class="mt-2 text-3xl stat-value text-indigo-600">
+        {{ leave_balance|default(0) }} <span class="text-sm font-medium text-slate-400">DAYS</span>
+      </p>
+    </div>
+
+    <div class="glass rounded-2xl p-5 bg-emerald-50/30">
+      <p class="stat-label">Current Status</p>
+      <div class="mt-2 flex items-center gap-2">
+        {% if current_status and current_status == 'Online' %}
+          <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
+          <p class="text-xl font-bold text-emerald-700">Online</p>
+        {% else %}
+          <div class="h-3 w-3 rounded-full bg-slate-400"></div>
+          <p class="text-xl font-bold text-slate-600">Offline</p>
+        {% endif %}
+      </div>
+    </div>
+
+  
+    <div class="glass rounded-2xl p-5 bg-slate-50/30 lg:col-span-2">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">My Team</p>
+        <div class="mt-3 flex items-center justify-between">
+          <div>
+            <p class="text-xl font-bold text-slate-900">{{ team.name if team else 'No team assigned' }}</p>
+            <p class="text-xs text-slate-500 mt-1">Lead: {{ team_leader.name if team_leader else 'Unassigned' }}</p>
+          </div>
+          <div class="h-10 w-10 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass rounded-2xl p-5 bg-slate-50/30 lg:col-span-2">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Additional Projects</p>
+        <div class="mt-3">
+          <p class="text-xl font-bold text-slate-900">{{ additional_projects_count|default(0) }} Active</p>
+          <div class="flex gap-2 mt-2">
+            {% for proj in additional_projects[:2] %}
+              <span class="text-[10px] font-bold bg-slate-100 px-2 py-1 rounded text-slate-600">{{ proj.name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    
+
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 reveal delay-2">
+
+    <div class="glass rounded-[1.5rem] p-6 lg:col-span-2">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold text-slate-900 tracking-tight">Shift Summary</h3>
+        <span class="text-xs font-bold text-slate-400 uppercase">{{ current_date_display if current_date_display else 'Today' }}</span>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+          <p class="stat-label">Check-in</p>
+          <p class="text-lg font-bold text-slate-800 mt-1">{{ current_checkin if current_checkin else '-' }}</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+          <p class="stat-label">Break Time</p>
+          <p class="text-lg font-bold text-slate-800 mt-1">-</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+          <p class="stat-label">Location</p>
+          <p class="text-lg font-bold text-blue-600 mt-1 truncate">{{ current_location if current_location else (user.department or 'N/A') }}</p>
+        </div>
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+          <p class="stat-label">Tasks Due</p>
+          <p class="text-lg font-bold text-slate-800 mt-1">{{ tasks|length if tasks else 0 }}</p>
+        </div>
+      </div>
+
+      <div class="mt-8 p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center gap-4">
+         <div class="p-2 bg-blue-100 rounded-lg text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+         </div>
+         <p class="text-sm text-blue-800 font-medium">blah blah blahhhhhh!!.</p>
+      </div>
+    </div>
+
+    <div class="glass rounded-[1.5rem] p-6 flex flex-col justify-between">
+      <div>
+        <h3 class="text-xl font-bold text-slate-900 mb-6 tracking-tight">Navigator</h3>
+        <div class="space-y-3">
+          <a href="/employee/attendance"
+             class="quick-btn w-full flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-blue-300">
+            <span>Attendance Logs</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <a href="/employee/tasks"
+             class="quick-btn w-full flex items-center justify-between p-4 rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+            <span>Task Manager</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <a href="/employee/leave"
+             class="quick-btn w-full flex items-center justify-between p-4 rounded-xl bg-slate-900 text-white">
+            <span>Request Leave</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-6 border-t border-slate-100 text-center">
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enterprise Version 2.4.1</p>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

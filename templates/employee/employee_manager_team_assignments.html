@@ -1,0 +1,262 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Team Assignments{% endblock %}
+
+{% block content %}
+
+<style>
+:root {
+  --primary: #0f172a;
+  --accent: #2563eb;
+  --glass-bg: rgba(255,255,255,0.6);
+  --glass-border: rgba(255,255,255,0.45);
+  --glass-stroke: rgba(255,255,255,0.8);
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+}
+
+body {
+  background:
+    radial-gradient(600px 400px at 10% 10%, rgba(255,255,255,.08), transparent),
+    radial-gradient(600px 400px at 90% 90%, rgba(255,255,255,.05), transparent),
+    #ffffff;
+  background-attachment: fixed;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text-main);
+}
+
+.ui-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-stroke);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.4),
+    0 10px 30px rgba(0,0,0,.08);
+  transition: transform .35s cubic-bezier(.16,1,.3,1),
+              box-shadow .35s ease,
+              background .35s ease;
+}
+
+.ui-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255,255,255,.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    0 20px 50px rgba(0,0,0,.15);
+}
+
+.heading-display {
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg,#0f172a,#334155);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.label-caps {
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-muted);
+}
+
+.btn-action {
+  background: linear-gradient(135deg,#2563eb,#1d4ed8);
+  color: #fff;
+  padding: .65rem 1.4rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: .875rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  border: 1px solid rgba(255,255,255,.25);
+  transition: all .25s ease;
+  text-decoration: none;
+}
+
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(37,99,235,.4);
+}
+
+.status-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: .65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reveal {
+  animation: revealUp .7s cubic-bezier(.16,1,.3,1) both;
+}
+
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(16px); filter: blur(6px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+.task-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #166534;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.meeting-badge {
+  background: rgba(37, 99, 235, 0.15);
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.employee-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+}
+
+</style>
+
+<div class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+
+  <!-- HEADER -->
+  <header class="flex justify-between items-center reveal">
+    <h1 class="heading-display">Team Assignments</h1>
+    <a href="/manager/manage_teams" class="btn-action">
+      ← Back to Dashboard
+    </a>
+  </header>
+
+  <!-- OVERVIEW STATS -->
+  <section class="grid grid-cols-1 md:grid-cols-4 gap-4 reveal">
+    <div class="ui-card p-5">
+      <p class="label-caps">Team Members</p>
+      <p class="text-3xl font-black mt-2">{{ team_data|length }}</p>
+    </div>
+    <div class="ui-card p-5">
+      <p class="label-caps">Total Tasks</p>
+      <p class="text-3xl font-black mt-2">{{ team_data | map(attribute='task_count') | sum }}</p>
+    </div>
+    <div class="ui-card p-5">
+      <p class="label-caps">Total Meetings</p>
+      <p class="text-3xl font-black mt-2">{{ team_data | map(attribute='meeting_count') | sum }}</p>
+    </div>
+    <div class="ui-card p-5">
+      <p class="label-caps">Avg Workload</p>
+      <p class="text-3xl font-black mt-2">
+        {% if team_data|length > 0 %}
+          {{ ((team_data | map(attribute='task_count') | sum) / (team_data|length))|round(1)|int }}
+        {% else %}
+          0
+        {% endif %}
+      </p>
+    </div>
+  </section>
+
+  <!-- EMPLOYEE ASSIGNMENTS -->
+  <div class="space-y-6 reveal">
+    <div>
+      <h2 class="text-2xl font-bold mb-6">Team Member Workload</h2>
+      <div class="employee-grid">
+        {% for item in team_data %}
+        <div class="ui-card p-6 overflow-hidden">
+          <!-- HEADER -->
+          <div class="flex items-center gap-3 mb-4 pb-4 border-b">
+            <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 font-extrabold flex items-center justify-center text-lg">
+              {{ item.employee.name[0] }}
+            </div>
+            <div class="flex-1">
+              <p class="font-bold">{{ item.employee.name }}</p>
+              <p class="text-xs text-slate-500">{{ item.employee.employee_id }}</p>
+            </div>
+          </div>
+
+          <!-- STATS -->
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="p-3 bg-blue-50 rounded-lg">
+              <p class="text-xs text-slate-500 mb-1">Tasks</p>
+              <p class="text-2xl font-black text-blue-700">{{ item.task_count }}</p>
+            </div>
+            <div class="p-3 bg-purple-50 rounded-lg">
+              <p class="text-xs text-slate-500 mb-1">Meetings</p>
+              <p class="text-2xl font-black text-purple-700">{{ item.meeting_count }}</p>
+            </div>
+          </div>
+
+          <!-- TASKS -->
+          <div class="mb-4">
+            <p class="text-sm font-bold text-slate-700 mb-2">Assigned Tasks</p>
+            {% if item.tasks|length > 0 %}
+            <div class="space-y-2 max-h-[200px] overflow-y-auto">
+              {% for task in item.tasks %}
+              <div class="p-2 bg-white/50 rounded text-xs border-l-2 border-emerald-500">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="font-bold text-slate-800">{{ task.title }}</p>
+                    <p class="text-slate-600">{{ task.description[:50] }}{% if task.description|length > 50 %}...{% endif %}</p>
+                  </div>
+                  <span class="inline-block px-2 py-0.5 text-[10px] font-bold uppercase rounded-full 
+                    {% if task.status == 'done' %}bg-green-100 text-green-700
+                    {% elif task.status == 'in-progress' %}bg-blue-100 text-blue-700
+                    {% else %}bg-orange-100 text-orange-700{% endif %}">
+                    {{ task.status }}
+                  </span>
+                </div>
+                {% if task.due_date %}
+                <p class="text-[10px] text-slate-500 mt-1">Due: {{ task.due_date.strftime('%d %b %Y') }}</p>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-xs text-slate-400 italic">No tasks assigned</p>
+            {% endif %}
+          </div>
+
+          <!-- MEETINGS -->
+          <div>
+            <p class="text-sm font-bold text-slate-700 mb-2">Assigned Meetings</p>
+            {% if item.meetings|length > 0 %}
+            <div class="space-y-2 max-h-[200px] overflow-y-auto">
+              {% for ma in item.meetings %}
+              <div class="p-2 bg-white/50 rounded text-xs border-l-2 border-blue-500">
+                <p class="font-bold text-slate-800">{{ ma.meeting.title }}</p>
+                {% if ma.meeting.meeting_datetime %}
+                <p class="text-slate-600 text-[10px]">{{ ma.meeting.meeting_datetime.strftime('%d %b %Y %H:%M') }}</p>
+                {% endif %}
+                {% if ma.meeting.description %}
+                <p class="text-slate-600 text-[10px]">{{ ma.meeting.description[:40] }}{% if ma.meeting.description|length > 40 %}...{% endif %}</p>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-xs text-slate-400 italic">No meetings assigned</p>
+            {% endif %}
+          </div>
+        </div>
+        {% else %}
+        <div class="ui-card p-12 text-center col-span-full">
+          <p class="text-slate-400 font-bold uppercase tracking-widest">No team members found</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}RFID Alerts | TeamSync{% endblock %}
+
+{% block page_title %}SIGNAL_LOG_TERMINAL{% endblock %}
+
+{% block content %}
+
+<div class="space-y-8">
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="border border-red-200 p-6 bg-red-50/30">
+        <p class="text-[10px] font-black uppercase tracking-widest text-red-500 mb-2">Unrecognized Signals</p>
+        <p class="text-4xl font-black tracking-tighter text-red-600">{{ unknown_rfids|length }}</p>
+    </div>
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">System Status</p>
+        <p class="text-sm font-bold uppercase tracking-tight text-slate-900 mt-2">Monitoring Active</p>
+    </div>
+    <div class="border border-[var(--border)] p-6 bg-[var(--panel)]">
+        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Last Sync</p>
+        <p class="text-sm font-bold uppercase tracking-tight text-slate-500 mt-2">Real-Time Data Feed</p>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-6">
+    <form method="get" action="/admin/unknown_rfid" class="flex gap-4">
+      <div class="flex-1 relative">
+        <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input name="search" placeholder="Search by tag hex or entry point..."
+               value="{{ search or '' }}"
+               class="w-full pl-11 pr-4 py-3 bg-[var(--bg)] border border-[var(--border)] text-sm font-bold outline-none focus:border-red-600 transition-colors" />
+      </div>
+      <button class="px-8 py-3 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all">
+        Filter Logs
+      </button>
+    </form>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center gap-3 mb-8">
+        <div class="h-5 w-1 bg-red-600"></div>
+        <h3 class="text-xs font-black uppercase tracking-[0.2em] text-red-600">Unauthorized Signal History</h3>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-[var(--border)] text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <th class="pb-4 px-2">Signal Hash (RFID)</th>
+            <th class="pb-4">Access Point</th>
+            <th class="pb-4">Timestamp</th>
+            <th class="pb-4 text-right">Operational Action</th>
+          </tr>
+        </thead>
+
+        <tbody class="divide-y divide-[var(--border)]">
+        {% if unknown_rfids %}
+          {% for r in unknown_rfids %}
+          <tr class="hover:bg-red-50/30 transition-colors group">
+            <td class="py-5 px-2">
+                <span class="executive-mono font-bold text-red-500 text-sm tracking-tighter">{{ r.rfid_tag }}</span>
+            </td>
+            <td class="py-5">
+                <p class="text-xs font-bold uppercase tracking-tight">{{ r.location }}</p>
+                <p class="executive-mono text-[9px] text-slate-400 mt-1">NODE_ID: {{ r.location_id|default('SYS_GEN') }}</p>
+            </td>
+            <td class="py-5">
+                <p class="executive-mono text-xs font-medium">{{ r.timestamp.strftime("%d-%m-%Y // %H:%M:%S") }}</p>
+            </td>
+            <td class="py-5 text-right">
+              <form method="post" action="/admin/resolve_rfid"
+                    class="inline-block"
+                    data-confirm="Archive this alert as resolved?">
+                <input type="hidden" name="rfid_tag" value="{{ r.rfid_tag }}">
+                <button class="px-5 py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">
+                  Resolve
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="4" class="py-16 text-center">
+              <p class="executive-mono text-slate-400 text-[10px] uppercase tracking-[0.2em]">No unrecognized signals detected in current cycle</p>
+            </td>
+          </tr>
+        {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

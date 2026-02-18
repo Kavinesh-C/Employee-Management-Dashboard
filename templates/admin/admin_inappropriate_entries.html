@@ -1,0 +1,114 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Audit Logs | Room Access{% endblock %}
+
+{% block page_title %}Security / Access Exceptions{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10">
+
+  {# Page Header #}
+  <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 border-b-2 border-slate-900 pb-8">
+    <div>
+      <h1 class="text-5xl text-slate-900 tracking-tight"><span class="font-bold">Invalid Room Entries</span></h1>
+      
+    </div>
+    <div class="flex items-baseline gap-2">
+      <span class="text-5xl font-black text-slate-900">{{ entries|length }}</span>
+      <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Flagged Events</span>
+    </div>
+  </div>
+
+  {# Search Section #}
+  <div class="bg-slate-50 border border-slate-200 p-2 mb-10">
+    <form method="get" class="flex flex-col sm:flex-row gap-2">
+      <div class="relative flex-1">
+        <i class="bi bi-funnel absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input 
+          type="text" 
+          name="search" 
+          placeholder="Filter by ID, Terminal, or Location..."
+          value="{{ search or '' }}"
+          class="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 text-sm focus:border-slate-900 focus:ring-0 transition-all shadow-sm"
+        />
+      </div>
+      <button type="submit" class="px-8 py-3 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-600 transition-colors">
+        Update View
+      </button>
+    </form>
+  </div>
+
+  {# Log Entry List #}
+  {% if entries %}
+<div class="space-y-4 bg-white">
+    {% for entry in entries %}
+    <div class="border border-yellow-200 bg-yellow-50  p-8 group hover:bg-slate-50 transition-colors">
+      <div class="flex flex-col lg:flex-row lg:items-start gap-8">
+        
+        {# Timestamp & Status #}
+        <div class="lg:w-48 shrink-0">
+          <div class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Event Timestamp</div>
+          <div class="text-sm font-bold text-slate-900">{{ entry.timestamp.strftime('%d %b %Y') }}</div>
+          <div class="text-xs text-slate-500 font-mono">{{ entry.timestamp.strftime('%H:%M:%S') }}</div>
+          <div class="mt-4 inline-flex items-center gap-2 px-2 py-1 border border-rose-200 bg-rose-50">
+             <span class="w-1.5 h-1.5 bg-rose-500"></span>
+             <span class="text-[9px] font-black uppercase text-rose-600 tracking-tighter">Unauthorized</span>
+          </div>
+        </div>
+
+        {# Event Details Grid #}
+        <div class="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Subject ID</p>
+            <p class="text-sm font-bold text-slate-900">{{ entry.employee_id or 'UNREGISTERED' }}</p>
+            <p class="text-[10px] text-slate-400 font-mono mt-1 truncate">{{ entry.rfid_tag }}</p>
+          </div>
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Location</p>
+            <p class="text-sm font-bold text-slate-800">{{ entry.location_name }}</p>
+          </div>
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Terminal / Room</p>
+            <p class="text-sm font-bold text-slate-800">Unit {{ entry.room_no }}</p>
+          </div>
+          <div class="col-span-2 md:col-span-1">
+            <p class="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">System Violation</p>
+            <p class="text-xs text-slate-600 leading-relaxed italic border-l-2 border-slate-200 pl-3">
+                {{ entry.reason }}
+            </p>
+          </div>
+        </div>
+
+        {# Individual Dismiss #}
+        <div class="lg:w-32 flex justify-end items-start">
+          <form method="post" action="/admin/delete_inappropriate_entry">
+            <input type="hidden" name="entry_id" value="{{ entry.id }}" />
+            <button type="submit" class="p-3 text-slate-300 hover:text-rose-600 border border-transparent hover:border-rose-100 hover:bg-rose-50 transition-all">
+              <i class="bi bi-trash3 text-lg"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Bulk Action #}
+  <div class="mt-8 flex justify-end">
+    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        End of exception log
+    </p>
+  </div>
+
+  {% else %}
+  <div class="py-24 border-2 border-dashed border-slate-200 bg-white flex flex-col items-center justify-center">
+    <div class="w-16 h-16 bg-slate-50 flex items-center justify-center mb-4">
+        <i class="bi bi-shield-check text-slate-200 text-3xl"></i>
+    </div>
+    <p class="text-slate-900 font-bold uppercase tracking-widest text-xs">No Discrepancies Detected</p>
+    <p class="text-slate-400 text-sm mt-1">System is currently in sync with all terminal entries.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

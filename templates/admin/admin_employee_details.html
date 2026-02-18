@@ -1,0 +1,300 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Employee Details | TeamSync{% endblock %}
+
+{% block page_title %}EMPLOYEE_DETAILS{% endblock %}
+<style>
+  @media print {
+    body { background: #fff; }
+    .no-print { display: none !important; }
+    .print-container { max-width: 100% !important; padding: 0 !important; }
+    .print-card { border: 1px solid #e5e7eb; box-shadow: none !important; }
+  }
+</style>
+
+{% block content %}
+<div class="space-y-8">
+  <div class="flex items-center justify-between no-print">
+    <a href="/admin/manage_employees" class="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition no-print">
+      <i class="bi bi-arrow-left"></i>
+      Back to Manage
+    </a>
+    <a href="/admin/employee_details/print?employee_id={{ employee.employee_id }}" class="inline-flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all">
+      <i class="bi bi-printer"></i>
+      Print / PDF
+    </a>
+  </div>
+
+  
+  {% if error %}
+    <div class="border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-600">{{ error }}</div>
+  {% else %}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-4">
+        <div class="border border-[var(--border)] bg-[var(--panel)] p-6">
+          <div class="flex items-center gap-4">
+            {% if employee.photo_blob %}
+              <img src="/employee/photo/{{ employee.employee_id }}" alt="{{ employee.name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+            {% elif employee.photo_path %}
+              <img src="{{ employee.photo_path }}" alt="{{ employee.name }}" class="w-16 h-16 rounded-2xl object-cover border border-slate-200" />
+            {% else %}
+              <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-2xl font-black text-slate-700">
+                {{ employee.name[0]|upper }}
+              </div>
+            {% endif %}
+            <div>
+              <div class="text-lg font-black text-slate-900">{{ employee.name }}</div>
+              <div class="text-[11px] font-black uppercase tracking-widest text-slate-400">{{ employee.role|default('Employee') }}</div>
+              <div class="text-[10px] text-slate-400 mt-1">ID - {{ employee.employee_id }}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 text-[11px] font-semibold text-slate-600">
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Email</div>
+              <div>{{ employee.email }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">RFID Tag</div>
+              <div>{{ employee.rfid_tag or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Phone</div>
+              <div>-</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">DOB</div>
+              <div>{{ employee.date_of_birth.strftime('%d-%m-%Y') if employee.date_of_birth else '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Title</div>
+              <div>{{ employee.title or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Department</div>
+              <div>{{ employee.department or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Role</div>
+              <div>{{ employee.role or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Team</div>
+              <div>{{ employee.team.name if employee.team else '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Team ID</div>
+              <div>{{ employee.current_team_id or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Active</div>
+              <div>{{ 'Yes' if employee.is_active else 'No' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Can Manage</div>
+              <div>{{ 'Yes' if employee.can_manage else 'No' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Active Leader</div>
+              <div>{{ 'Yes' if employee.active_leader else 'No' }}</div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Notes</div>
+            <div class="mt-2 p-3 border border-slate-200 bg-slate-50 text-[11px] text-slate-500">
+              {{ employee.notes or 'No notes added.' }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-8 space-y-6">
+        <div class="flex items-center justify-between">
+          <div class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Employee Statistics</div>
+          <div class="flex items-center gap-3">
+            <a href="{{ request.base_url }}public/employee/{{ employee.employee_id }}" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">Open QR Profile</a>
+            <button type="button" id="openQrModal" class="w-12 h-12 border border-slate-200 bg-white hover:bg-slate-50 transition">
+              <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data={{ request.base_url }}public/employee/{{ employee.employee_id }}" alt="QR" class="w-full h-full" />
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Total Payout</div>
+            <div class="text-2xl font-black text-slate-900 mt-2">INR {{ payroll_amount_inr }}</div>
+            <div class="text-[11px] text-slate-500 mt-1">Base Pay - INR {{ hourly_rate_inr }} / hr</div>
+          </div>
+          <div class="border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Total Time Worked</div>
+            <div class="text-2xl font-black text-slate-900 mt-2">{{ '%.0f'|format(total_hours or 0) }}h</div>
+            <div class="text-[11px] text-slate-500 mt-1">Attendance based</div>
+          </div>
+          <div class="border border-[var(--border)] bg-[var(--panel)] p-4">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Reimbursement</div>
+            <div class="text-2xl font-black text-slate-900 mt-2">INR {{ allowances_inr }}</div>
+            <div class="text-[11px] text-slate-500 mt-1">Deductions: INR {{ deductions_inr }}</div>
+          </div>
+        </div>
+
+        <div class="border border-[var(--border)] bg-[var(--panel)] p-5">
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Payroll Details</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 text-[12px] text-slate-600">
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Hourly Rate</div>
+              <div>INR {{ hourly_rate_inr }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Base Salary</div>
+              <div>INR {{ payroll_amount_inr }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Tax %</div>
+              <div>{{ employee.tax_percentage or 0 }}%</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Paid Leaves</div>
+              <div>{{ employee.paid_leaves_allowed or 0 }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Allowances</div>
+              <div>INR {{ allowances_inr }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Deductions</div>
+              <div>INR {{ deductions_inr }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="border border-[var(--border)] bg-[var(--panel)] p-5">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Role & Team</div>
+            <div class="mt-3 space-y-2 text-[12px] text-slate-600">
+              <div>Role: {{ employee.role or '-' }}</div>
+              <div>Team: {{ employee.team.name if employee.team else '-' }}</div>
+              <div>Team ID: {{ employee.current_team_id or '-' }}</div>
+              <div>Active: {{ 'Yes' if employee.is_active else 'No' }}</div>
+            </div>
+          </div>
+          <div class="border border-[var(--border)] bg-[var(--panel)] p-5">
+            <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Tasks Completed</div>
+            <div class="mt-4 border border-slate-200 bg-white p-3">
+              <svg id="tasksChart" viewBox="0 0 300 120" class="w-full h-28">
+                <polyline id="tasksLine" fill="none" stroke="#2563eb" stroke-width="2" points="" />
+              </svg>
+              <div class="grid grid-cols-6 gap-2 text-[10px] text-slate-400 mt-2">
+                {% for label in task_chart_labels[::2] %}
+                  <div class="text-center">{{ label }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border border-[var(--border)] bg-[var(--panel)] p-5">
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Employee Activity</div>
+        <div class="print-card border border-[var(--border)] bg-[var(--panel)] p-5">
+          <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Printable Summary</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-[12px] text-slate-600">
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Employee ID</div>
+              <div>{{ employee.employee_id }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">RFID Tag</div>
+              <div>{{ employee.rfid_tag or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Title</div>
+              <div>{{ employee.title or '-' }}</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-slate-400 font-black">Status</div>
+              <div>{{ 'Active' if employee.is_active else 'Inactive' }}</div>
+            </div>
+          </div>
+        </div>
+          <div class="mt-3 text-[12px] text-slate-500">No recent activity</div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<div id="qrModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/40 z-50">
+  <div class="bg-white rounded-2xl w-[92%] max-w-md shadow-2xl border border-slate-200">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div>
+        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee QR</div>
+        <div class="text-lg font-black text-slate-900">{{ employee.name }}</div>
+      </div>
+      <button type="button" id="closeQrModal" class="w-9 h-9 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>
+    <div class="p-6 flex flex-col items-center gap-4">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ request.base_url }}public/employee/{{ employee.employee_id }}" alt="QR" class="w-60 h-60 border border-slate-200" />
+      <div class="text-xs text-slate-500">Scan to open the public profile.</div>
+    </div>
+  </div>
+</div>
+
+<script type="application/json" id="taskCountsData">{{ task_chart_counts|tojson }}</script>
+<script>
+  const taskCountsEl = document.getElementById('taskCountsData');
+  const taskCounts = taskCountsEl ? JSON.parse(taskCountsEl.textContent || '[]') : [];
+  const svg = document.getElementById('tasksChart');
+  const line = document.getElementById('tasksLine');
+  if (svg && line && Array.isArray(taskCounts) && taskCounts.length) {
+    const width = 300;
+    const height = 120;
+    const maxVal = Math.max(1, ...taskCounts);
+    const stepX = width / (taskCounts.length - 1 || 1);
+    const points = taskCounts.map((v, i) => {
+      const x = i * stepX;
+      const y = height - (v / maxVal) * (height - 10) - 5;
+      return `${x},${y}`;
+    }).join(' ');
+    line.setAttribute('points', points);
+  }
+
+  const openQrModal = document.getElementById('openQrModal');
+  const qrModal = document.getElementById('qrModal');
+  const closeQrModal = document.getElementById('closeQrModal');
+
+  function hideQrModal() {
+    if (!qrModal) {
+      return;
+    }
+    qrModal.classList.add('hidden');
+    qrModal.classList.remove('flex');
+  }
+
+  if (openQrModal && qrModal) {
+    openQrModal.addEventListener('click', () => {
+      qrModal.classList.remove('hidden');
+      qrModal.classList.add('flex');
+    });
+  }
+
+  if (closeQrModal) {
+    closeQrModal.addEventListener('click', hideQrModal);
+  }
+
+  if (qrModal) {
+    qrModal.addEventListener('click', (event) => {
+      if (event.target === qrModal) {
+        hideQrModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      hideQrModal();
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,279 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}{{ feature.name }} | Security Center{% endblock %}
+
+{% block page_title %}SECURITY_DETAIL{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div>
+        <h3 class="text-lg font-black uppercase tracking-[0.2em] text-slate-700">{{ feature.name }}</h3>
+        <p class="text-sm text-slate-500 mt-2">{{ feature.description }}</p>
+        <p class="text-[11px] text-slate-400 mt-3"><span class="font-bold text-slate-500">Why:</span> {{ feature.why }}</p>
+        <p class="text-[11px] text-slate-400 mt-1"><span class="font-bold text-slate-500">How:</span> {{ feature.how }}</p>
+        <div class="mt-3 border border-[var(--border)] bg-slate-50 p-2 text-[10px] text-slate-500 break-words max-w-3xl">
+          <div class="font-black uppercase tracking-widest text-[9px] text-slate-400 mb-1">Connections</div>
+          <p><span class="font-bold text-slate-600">Linked:</span> /admin/security/{{ feature.id }}</p>
+          {% if feature.env_var %}
+          <p><span class="font-bold text-slate-600">Config:</span> {{ feature.env_var }}</p>
+          {% endif %}
+          <div>
+            <span class="font-bold text-slate-600">Connected:</span>
+            {% if feature.files %}
+            <ul class="list-disc list-inside">
+              {% for file in feature.files %}
+              <li>{{ file }}</li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <span>-</span>
+            {% endif %}
+          </div>
+          {% if feature.notes %}
+          <p><span class="font-bold text-slate-600">Notes:</span> {{ feature.notes }}</p>
+          {% endif %}
+          {% if feature.toggle %}
+          <p><span class="font-bold text-slate-600">Restart:</span> Required after toggle</p>
+          {% endif %}
+          {% if feature.manage %}
+          <div>
+            <span class="font-bold text-slate-600">Managed:</span>
+            <ul class="list-disc list-inside">
+              {% for item in feature.manage %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex flex-col items-start md:items-end gap-3">
+        <div class="flex items-center gap-2">
+          <a href="/admin/security" class="px-3 py-1 text-[10px] font-black uppercase tracking-widest border border-[var(--border)] hover:border-blue-600 hover:text-blue-600 transition-all">
+            Back
+          </a>
+          {% if prev_id %}
+          <a href="/admin/security/{{ prev_id }}" class="px-3 py-1 text-[10px] font-black uppercase tracking-widest border border-[var(--border)] hover:border-blue-600 hover:text-blue-600 transition-all">
+            Previous
+          </a>
+          {% endif %}
+          {% if next_id %}
+          <a href="/admin/security/{{ next_id }}" class="px-3 py-1 text-[10px] font-black uppercase tracking-widest border border-[var(--border)] hover:border-blue-600 hover:text-blue-600 transition-all">
+            Next
+          </a>
+          {% endif %}
+        </div>
+        <span class="px-3 py-1 text-[10px] font-black uppercase tracking-widest border {% if feature.enabled %}border-emerald-200 text-emerald-600 bg-emerald-50{% else %}border-red-200 text-red-600 bg-red-50{% endif %}">
+          {% if feature.enabled %}Enabled{% else %}Disabled{% endif %}
+        </span>
+      </div>
+    </div>
+    <div class="mt-5 h-1.5 w-full bg-slate-100 overflow-hidden">
+      <div class="h-full bg-blue-600" data-metric-bar="coverage" data-feature="{{ feature.id }}"></div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+      <div class="flex-1">
+        <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Implementation</h4>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {% for f in feature.files %}
+          <div class="border border-[var(--border)] p-4 bg-white">
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">File</p>
+            <p class="text-sm font-bold text-slate-700 mt-2">{{ f }}</p>
+          </div>
+          {% endfor %}
+        </div>
+        <p class="text-sm text-slate-500 mt-6">{{ feature.notes }}</p>
+      </div>
+      <div class="w-full lg:w-64 border border-[var(--border)] bg-white p-5">
+        <h4 class="text-[10px] font-black uppercase tracking-widest text-slate-400">Metrics</h4>
+        <div class="mt-4 space-y-3">
+          <div class="border border-[var(--border)] p-3">
+            <div class="text-[9px] uppercase tracking-widest text-slate-400">Coverage</div>
+            <div class="text-sm font-black text-slate-700" data-metric="coverage" data-feature="{{ feature.id }}">{{ feature.metrics.coverage }}%</div>
+          </div>
+          <div class="border border-[var(--border)] p-3">
+            <div class="text-[9px] uppercase tracking-widest text-slate-400">Score</div>
+            <div class="text-sm font-black text-slate-700" data-metric="score" data-feature="{{ feature.id }}">{{ feature.metrics.score }}</div>
+          </div>
+          <div class="border border-[var(--border)] p-3">
+            <div class="text-[9px] uppercase tracking-widest text-slate-400">Events</div>
+            <div class="text-sm font-black text-slate-700" data-metric="events" data-feature="{{ feature.id }}">{{ feature.metrics.events }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Controls</h4>
+      <p class="text-sm text-slate-500 mt-2">Toggleable settings require a restart to fully apply.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      {% if feature.toggle %}
+      <form method="post" action="/admin/security/toggle">
+        <input type="hidden" name="csrf_token" value="{{ request.session.get('_csrf') or request.cookies.get('csrf_token','') }}">
+        <input type="hidden" name="feature" value="{{ feature.id }}">
+        {% if feature.enabled %}
+        <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 transition-all">
+          Turn Off
+        </button>
+        {% else %}
+        <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 transition-all">
+          Turn On
+        </button>
+        {% endif %}
+      </form>
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">Restart required</span>
+      {% else %}
+      <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-500 cursor-not-allowed" disabled>
+        Managed by Code
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="h-5 w-1 bg-blue-600"></div>
+      <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Feature Configuration</h4>
+    </div>
+    {% if feature.inputs %}
+    <form method="post" action="/admin/security/env/bulk" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ request.session.get('_csrf') or request.cookies.get('csrf_token','') }}">
+      <input type="hidden" name="feature_id" value="{{ feature.id }}">
+      <input type="hidden" name="return_to" value="/admin/security/{{ feature.id }}">
+      {% for inp in feature.inputs %}
+      <div>
+        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400">{{ inp.label }}</label>
+        {% if inp.type == "bool" %}
+        <select name="{{ inp.name }}" class="mt-1 w-full border border-[var(--border)] px-3 py-2 text-sm">
+          <option value="true" {% if (inp.value or '')|lower == 'true' %}selected{% endif %}>true</option>
+          <option value="false" {% if (inp.value or '')|lower == 'false' %}selected{% endif %}>false</option>
+        </select>
+        {% elif inp.type == "int" %}
+        <input type="number" name="{{ inp.name }}" value="{{ inp.value or '' }}" class="mt-1 w-full border border-[var(--border)] px-3 py-2 text-sm">
+        {% elif inp.type == "url" %}
+        <input type="url" name="{{ inp.name }}" value="{{ inp.value or '' }}" placeholder="https://..." class="mt-1 w-full border border-[var(--border)] px-3 py-2 text-sm">
+        {% else %}
+        <input type="text" name="{{ inp.name }}" value="{{ inp.value or '' }}" class="mt-1 w-full border border-[var(--border)] px-3 py-2 text-sm">
+        {% endif %}
+        {% if inp.description %}
+        <div class="text-[10px] text-slate-400 mt-1">{{ inp.description }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-blue-600 transition-all">
+        Save Configuration
+      </button>
+    </form>
+    {% else %}
+    <div class="text-xs text-slate-400">No direct inputs required for this feature.</div>
+    {% endif %}
+  </div>
+
+  {% if feature.allow_upload %}
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="h-5 w-1 bg-blue-600"></div>
+      <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">File Upload</h4>
+    </div>
+    <form method="post" action="/admin/security/certificates/upload" enctype="multipart/form-data" class="space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ request.session.get('_csrf') or request.cookies.get('csrf_token','') }}">
+      <input type="hidden" name="feature_id" value="{{ feature.id }}">
+      <input type="hidden" name="return_to" value="/admin/security/{{ feature.id }}">
+      <input type="file" name="cert_file" class="w-full text-sm" required>
+      <button class="px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-blue-600 transition-all">
+        Upload File
+      </button>
+    </form>
+    <div class="mt-4 space-y-2">
+      {% if certificates %}
+      {% for c in certificates %}
+      <div class="border border-[var(--border)] p-3 flex items-center justify-between gap-3">
+        <div class="text-sm text-slate-700 break-words">{{ c.filename }}</div>
+        <a href="/admin/security/certificates/{{ c.id }}" class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline">Download</a>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="text-xs text-slate-400">No files uploaded yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if feature.id in ["data-integrity", "encryption-at-rest", "field-encryption", "key-management"] %}
+  <div class="border border-[var(--border)] bg-[var(--panel)] p-8">
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <div class="h-5 w-1 bg-blue-600"></div>
+        <h4 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Encryption & Hash History</h4>
+      </div>
+      <span class="text-[10px] uppercase tracking-widest text-slate-400">Latest 100 entries</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-left text-xs">
+        <thead class="text-[10px] uppercase tracking-widest text-slate-400">
+          <tr>
+            <th class="py-2 pr-4">Timestamp</th>
+            <th class="py-2 pr-4">Employee</th>
+            <th class="py-2 pr-4">Entity</th>
+            <th class="py-2 pr-4">Field</th>
+            <th class="py-2 pr-4">Old Hash</th>
+            <th class="py-2 pr-4">New Hash</th>
+            <th class="py-2">Actor</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-600">
+          {% for h in hash_history %}
+          <tr class="border-t border-[var(--border)]">
+            <td class="py-2 pr-4 text-[11px] text-slate-500">{{ h.timestamp }}</td>
+            <td class="py-2 pr-4 font-semibold text-slate-700">{{ h.employee_name or '-' }}</td>
+            <td class="py-2 pr-4">{{ h.entity_type }}{% if h.entity_id %} · {{ h.entity_id }}{% endif %}</td>
+            <td class="py-2 pr-4">{{ h.field_name }}</td>
+            <td class="py-2 pr-4 truncate max-w-[180px]" title="{{ h.old_hash or '' }}">{{ h.old_hash or '-' }}</td>
+            <td class="py-2 pr-4 truncate max-w-[180px]" title="{{ h.new_hash or '' }}">{{ h.new_hash or '-' }}</td>
+            <td class="py-2">{{ h.actor_name or '-' }}</td>
+          </tr>
+          {% endfor %}
+          {% if not hash_history %}
+          <tr class="border-t border-[var(--border)]">
+            <td class="py-6 text-center text-[10px] uppercase tracking-widest text-slate-400" colspan="7">
+              No hash history recorded yet
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  async function refreshSecurityDetailMetrics() {
+    try {
+      const res = await fetch('/admin/security/metrics');
+      if (!res.ok) return;
+      const data = await res.json();
+      const metrics = (data.metrics || {})['{{ feature.id }}'];
+      if (!metrics) return;
+      document.querySelectorAll('[data-feature="{{ feature.id }}"][data-metric="coverage"]').forEach(el => el.textContent = `${metrics.coverage}%`);
+      document.querySelectorAll('[data-feature="{{ feature.id }}"][data-metric="score"]').forEach(el => el.textContent = metrics.score);
+      document.querySelectorAll('[data-feature="{{ feature.id }}"][data-metric="events"]').forEach(el => el.textContent = metrics.events);
+      document.querySelectorAll('[data-feature="{{ feature.id }}"][data-metric-bar="coverage"]').forEach(el => el.style.width = `${metrics.coverage}%`);
+    } catch (e) {
+      // silent
+    }
+  }
+
+  refreshSecurityDetailMetrics();
+  setInterval(refreshSecurityDetailMetrics, 10000);
+</script>
+{% endblock %}

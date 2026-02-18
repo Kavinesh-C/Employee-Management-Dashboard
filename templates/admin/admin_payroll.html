@@ -1,0 +1,146 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Payroll Overview | TeamSync{% endblock %}
+
+{% block page_title %}Financial / Payroll Ledger{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10 space-y-10">
+
+  {# Financial Summary Cards #}
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-px bg-slate-200 border border-slate-200 shadow-sm">
+    <div class="bg-white p-8">
+      <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3">Total Personnel</p>
+      <p class="text-4xl font-light tracking-tight text-slate-900">{{ payroll|length }}</p>
+    </div>
+
+    <div class="bg-white p-8">
+      <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3">Average Disbursement</p>
+      <p class="text-3xl font-light tracking-tight text-slate-900">₹{{ avg_salary }}</p>
+    </div>
+
+    <div class="bg-white p-8">
+      <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-3">Highest Payout</p>
+      <p class="text-3xl font-light tracking-tight text-slate-900">₹{{ max_salary }}</p>
+    </div>
+
+    <div class="bg-white p-8 bg-slate-50">
+      <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-indigo-500 mb-3">Total Net Expenditure</p>
+      <p class="text-4xl font-bold tracking-tighter text-indigo-600">₹{{ total_salary }}</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+    
+    {# Salary Distribution Chart #}
+    <div class="lg:col-span-4 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-900">Distribution Analysis</h3>
+            <i class="bi bi-graph-up text-slate-400"></i>
+        </div>
+        <div class="bg-white border border-slate-200 p-6 h-[400px]">
+            <canvas id="payrollChart"></canvas>
+        </div>
+    </div>
+
+    {# Detailed Ledger Table #}
+    <div class="lg:col-span-8 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-900 pb-2">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-900">Disbursement Ledger</h3>
+            <span class="text-[10px] font-medium text-slate-400">All figures in INR (₹)</span>
+        </div>
+
+        <div class="bg-white border border-slate-200 shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200">
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Employee</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500 text-right">Base</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500 text-right">Deductions</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-500 text-right">Tax (TDS)</th>
+                        <th class="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-slate-900 text-right">Net Payable</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for p in payroll %}
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="px-6 py-5">
+                            <div class="text-sm font-bold text-slate-900">{{ p.name }}</div>
+                            <div class="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">REF: {{ p.employee_id }}</div>
+                        </td>
+                        <td class="px-6 py-5 text-right text-xs font-medium text-slate-600">
+                            {{ "{:,.2f}".format(p.base_salary) }}
+                        </td>
+                        <td class="px-6 py-5 text-right text-xs font-medium text-rose-500">
+                            ({{ "{:,.2f}".format(p.leave_deduction) }})
+                        </td>
+                        <td class="px-6 py-5 text-right text-xs font-medium text-rose-500">
+                            ({{ "{:,.2f}".format(p.tax) }})
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            <span class="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                ₹{{ "{:,.2f}".format(p.net_salary) }}
+                            </span>
+                        </td>
+                    </tr>
+                    {# Expansion Row for Details #}
+                    <tr class="bg-slate-50/50">
+                        <td colspan="5" class="px-6 py-3 border-t border-slate-100">
+                            <div class="flex items-center gap-4 text-[10px]">
+                                <span class="font-bold text-slate-400 uppercase">Memo:</span>
+                                <span class="text-slate-600">Adjustment of ₹{{ p.leave_deduction }} applied for {{ p.unpaid_leaves }} absence days.</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const labels = {{ (payroll | map(attribute='name') | list) | tojson }};
+const values = {{ (payroll | map(attribute='net_salary') | list) | tojson }};
+
+new Chart(document.getElementById('payrollChart'), {
+  type: 'bar',
+  data: {
+    labels: labels,
+    datasets: [{
+      data: values,
+      backgroundColor: '#1e293b', // Slate-800
+      hoverBackgroundColor: '#4f46e5', // Indigo-600
+      barThickness: 12
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { 
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: '#0f172a',
+            titleFont: { size: 12, weight: 'bold' },
+            bodyFont: { size: 11 },
+            cornerRadius: 0,
+            padding: 12
+        }
+    },
+    scales: {
+      y: { 
+        grid: { display: false },
+        ticks: { font: { size: 10, weight: '600' }, color: '#64748b' }
+      },
+      x: { 
+        grid: { color: "#f1f5f9" }, 
+        ticks: { font: { size: 10 }, color: '#94a3b8' }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

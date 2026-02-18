@@ -1,0 +1,204 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Leave Approvals | TeamSync{% endblock %}
+
+{% block page_title %}Leave Management{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-6 py-8 bg-[#fbfcfd] min-h-screen">
+    
+    {# Global Header Card #}
+    <div class="bg-white border-b border-slate-200 -mx-6 -mt-8 px-8 py-6 mb-8 flex items-center justify-between">
+        <div>
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-12 bg-blue-600"></div>
+                <h1 class="text-6xl font-bold text-slate-900 tracking-tight">Leave Registry</h1>
+            </div>
+            
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- <div class="hidden md:flex flex-col items-end border-r border-slate-200 pr-4">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Status</span>
+                <span class="text-xs font-semibold text-emerald-600 flex items-center gap-1.5 mt-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> SYSTEM_LIVE
+                </span>
+            </div> -->
+            <div class="bg-slate-100 p-1 flex">
+                <button class="px-5 py-2 text-[11px] font-bold uppercase tracking-wider transition-all filter-pill active" data-filter="all">Total View</button>
+                <button class="px-5 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 transition-all filter-pill" data-filter="pending">Awaiting Review</button>
+            </div>
+        </div>
+    </div>
+
+    {# Main Grid Container #}
+    <div class="bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden">
+        <table class="w-full border-collapse">
+            <thead>
+                <tr class="bg-slate-50 border-b border-slate-200">
+                    <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-left">Subject Profile</th>
+                    <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-left">Time Allotment</th>
+                    <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-left w-1/3">Justification</th>
+                    <th class="px-6 py-4 text-[11px] font-extrabold text-slate-500 uppercase tracking-widest text-right">Directives</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for l in pending %}
+                <tr class="hover:bg-slate-50/50 transition-all duration-200 group" data-status="{{ l.status|lower }}">
+                    <td class="px-6 py-5">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-900 leading-tight group-hover:text-blue-600 transition-colors">{{ l.user.name }}</span>
+                            <span class="text-[10px] font-mono text-slate-400 mt-0.5 tracking-tighter uppercase">{{ l.user.department|default('CORE_OPERATIONS') }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5">
+                        <div class="flex items-center gap-2">
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-bold text-slate-700 leading-none">{{ l.start_date }}</span>
+                               
+                            </div>
+                            <div class="h-px w-4 bg-slate-200"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-bold text-slate-700 leading-none">{{ l.end_date }}</span>
+                     
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-5">
+                        <div class="text-xs text-slate-600 leading-relaxed max-w-md border-l-2 border-slate-100 pl-4 py-1">
+                            {{ l.reason }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-5 text-right">
+                        <div class="flex justify-end gap-2">
+                            {% if l.status == 'Pending' %}
+                                <form method="post" action="/admin/leave/update">
+                                    <input type="hidden" name="leave_id" value="{{ l.id }}">
+                                    <input type="hidden" name="action" value="approve">
+                                    <button class="px-4 py-2 bg-slate-900 hover:bg-green-600 text-white text-[10px] font-black uppercase tracking-widest transition-all">
+                                        Approve
+                                    </button>
+                                </form>
+
+                                <form method="post" action="/admin/leave/update">
+                                    <input type="hidden" name="leave_id" value="{{ l.id }}">
+                                    <input type="hidden" name="action" value="reject">
+                                    <button class="px-4 py-2 border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 text-[10px] font-black uppercase tracking-widest transition-all">
+                                        Reject
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="px-4 py-2 bg-slate-100 text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em]">Archived_Entry</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not pending %}
+                <tr>
+                    <td colspan="4" class="px-6 py-32 text-center bg-slate-50/30">
+                        <div class="flex flex-col items-center opacity-40">
+                            <span class="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">Queue_Inactive</span>
+                            <div class="w-12 h-px bg-slate-300 mt-4"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<style>
+    /* Remove all rounded edges for a strict corporate look */
+    *, .rounded-xl, .rounded-lg, .rounded-md, .rounded { border-radius: 0px !important; }
+    
+    .filter-pill.active {
+        background-color: white !important;
+        color:blue !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    }
+</style>
+
+<script>
+const leaveFilterButtons = Array.from(document.querySelectorAll('.filter-pill'));
+const leaveRows = Array.from(document.querySelectorAll('tbody tr[data-status]'));
+const leaveActionForms = Array.from(document.querySelectorAll('form[action="/admin/leave/update"]'));
+
+function applyLeaveFilter(status) {
+    leaveRows.forEach(row => {
+        const rowStatus = row.dataset.status || '';
+        row.style.display = (status === 'all' || rowStatus === status) ? 'table-row' : 'none';
+    });
+}
+
+leaveFilterButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        leaveFilterButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyLeaveFilter(btn.dataset.filter || 'all');
+    });
+});
+
+async function refreshLeaveBadge() {
+    try {
+        const res = await fetch('/api/leave_count');
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('leaveCountBadge');
+        if (!badge) return;
+        const count = Number(data.count || 0);
+        if (count > 0) {
+            badge.textContent = String(count);
+            badge.classList.remove('hidden');
+        } else {
+            badge.textContent = '0';
+            badge.classList.add('hidden');
+        }
+    } catch (_) {}
+}
+
+function markRowArchived(row, action) {
+    row.dataset.status = action === 'approve' ? 'approved' : 'rejected';
+    const actionsCell = row.querySelector('td:last-child .flex');
+    if (!actionsCell) return;
+    actionsCell.innerHTML = '<span class="px-4 py-2 bg-slate-100 text-slate-400 text-[9px] font-bold uppercase tracking-[0.2em]">Archived_Entry</span>';
+}
+
+leaveActionForms.forEach(form => {
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const row = form.closest('tr[data-status]');
+        const actionInput = form.querySelector('input[name="action"]');
+        const action = actionInput ? actionInput.value : '';
+
+        leaveActionForms
+            .filter(f => f.closest('tr[data-status]') === row)
+            .forEach(f => {
+                const btn = f.querySelector('button');
+                if (btn) btn.disabled = true;
+            });
+
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                credentials: 'same-origin'
+            });
+            if (!res.ok) throw new Error('Leave update failed');
+            if (row) {
+                markRowArchived(row, action);
+                const activeFilterBtn = document.querySelector('.filter-pill.active');
+                const activeFilter = activeFilterBtn ? activeFilterBtn.dataset.filter || 'all' : 'all';
+                applyLeaveFilter(activeFilter);
+            }
+            refreshLeaveBadge();
+        } catch (_) {
+            form.submit();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,905 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Strategic Unit Registry | TeamSync{% endblock %}
+
+{% block content %}
+
+<div class="max-w-[1400px] mx-auto space-y-8">
+
+<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-12 bg-white/40 backdrop-blur-md p-8 rounded-[2rem] border border-white/60 shadow-sm shadow-slate-200/50">
+    
+    <div class="space-y-2">
+        <div class="flex items-center gap-3">
+
+            <div>
+                <h2 class="text-6xl font-extrabold tracking-tight text-slate-900 leading-none">Our <span class="text-blue-600">Teams.</span></h2>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="text-[10px] font-bold text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Management Console</span>
+                    <span class="text-slate-300 text-xs">|</span>
+                    <p class="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+                        Hierarchy • Asset Allocation • Ops
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex flex-col sm:flex-row flex-wrap gap-3 w-full lg:w-auto items-center">
+        
+        <div class="relative group w-full sm:w-72">
+            <i class="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors text-sm"></i>
+            <input type="text" id="teamSearch" onkeyup="filterTeams()" placeholder="Search registry..." 
+                   class="w-full bg-white border border-slate-200 pl-11 pr-4 py-3 rounded-xl text-sm font-medium focus:ring-4 focus:ring-blue-50 focus:border-blue-500 outline-none transition-all shadow-sm">
+        </div>
+
+        <div class="hidden sm:block h-10 w-px bg-slate-200 mx-1"></div>
+
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+            <div class="flex gap-2 flex-grow sm:flex-grow-0">
+                <button onclick="document.getElementById('assignMemberModal').classList.remove('hidden')" 
+                        class="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm group" title="Assign Staff">
+                    <i class="bi bi-person-plus-fill"></i>
+                </button>
+
+                <button onclick="openCreateProjectModal()"
+                        class="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm group" title="Create Project">
+                    <i class="bi bi-clipboard2-plus-fill"></i>
+                </button>
+                
+                <a href="/manager/projects"
+                   class="p-3 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm group" title="Manage Projects">
+                    <i class="bi bi-command"></i>
+                </a>
+            </div>
+
+            <button onclick="document.getElementById('createTeamModal').classList.remove('hidden')" 
+                    class="flex-grow sm:flex-grow-0 px-6 py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-200 transition-all flex items-center justify-center gap-2">
+                <i class="bi bi-plus-lg text-sm"></i>
+                <span>Create Unit</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+   <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="teamContainer">
+    {% for item in team_data %}
+    {% set team = item.team %}
+    <div class="group bg-white rounded-3xl border border-slate-200/60 p-6 hover:shadow-2xl hover:shadow-blue-500/10 hover:border-blue-200 transition-all duration-300 team-card relative overflow-hidden" 
+         data-search="{{ team.name }} {{ team.department }}"
+         data-team-id="{{ team.id }}"
+         data-team-name="{{ team.name }}"
+         data-team-department="{{ team.department }}"
+         data-team-leader="{{ team.leader.name if team.leader else 'Unassigned' }}"
+         data-team-project="{{ team.project.name if team.project else 'Not linked' }}"
+         data-team-members="{{ item.members | map(attribute='name') | list | tojson }}"
+         data-team-member-ids="{{ item.members | map(attribute='employee_id') | list | tojson }}"
+         data-team-task-status='{{ item.member_task_status | tojson }}'
+         onclick="openTeamModal(this)">
+        
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-50 rounded-full blur-3xl group-hover:bg-blue-100/50 transition-colors duration-500"></div>
+
+        <div class="flex justify-between items-start mb-6 relative z-10">
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold uppercase tracking-wider rounded-md border border-blue-100">
+                        {{ team.department }}
+                    </span>
+                    {% if team.project %}
+                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-bold uppercase tracking-wider rounded-md border border-emerald-100">
+                        Active
+                    </span>
+                    {% endif %}
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
+                    {{ team.name }}
+                </h3>
+                <div class="flex items-center gap-1.5 text-slate-400">
+                    <i class="bi bi-rocket-takeoff text-xs"></i>
+                    <p class="text-[11px] font-medium truncate max-w-[180px]">
+                        {{ team.project.name if team.project else 'Unlinked Project' }}
+                    </p>
+                </div>
+            </div>
+            
+            <form action="/manager/delete_team" method="POST" data-confirm="Confirm Unit Disbandment?" class="team-action">
+                <input type="hidden" name="team_id" value="{{ team.id }}">
+                <button type="submit" class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                    <i class="bi bi-trash3 text-lg"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-slate-50 rounded-2xl p-4 mb-6 border border-slate-100 relative z-10 transition-colors group-hover:bg-white group-hover:border-blue-100">
+            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Unit Leadership</p>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-slate-200">
+                        {{ team.leader.name[0] if team.leader else '?' }}
+                    </div>
+                    <div>
+                        <div class="text-xs font-bold text-slate-900 flex items-center gap-2">
+                            {% if team.leader %}
+                                {{ team.leader.name }}
+                                {% if team.leader_id != team.permanent_leader_id %}
+                                    <span class="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Acting</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-slate-400 italic">Position Vacant</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-[10px] text-slate-500 font-medium">Designated Team Lead</p>
+                    </div>
+                </div>
+                <i class="bi bi-shield-check text-slate-200 group-hover:text-blue-200 transition-colors text-xl"></i>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-5 border-t border-slate-100 relative z-10">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1.5">
+                    <i class="bi bi-people text-slate-400 text-sm"></i>
+                    <span class="text-[11px] font-bold text-slate-700">{{ item.member_count }} Members</span>
+                </div>
+            </div>
+            
+            <a href="/manager/team/{{ team.id }}/members" class="team-action group/btn flex items-center gap-1.5 text-[10px] font-bold text-blue-600 uppercase tracking-widest hover:text-blue-800 transition-colors">
+                View Members
+                <i class="bi bi-arrow-right transition-transform group-hover/btn:translate-x-1"></i>
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-full py-32 flex flex-col items-center justify-center bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-[3rem]">
+        <div class="w-20 h-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mb-6">
+            <i class="bi bi-folder-x text-3xl text-slate-300"></i>
+        </div>
+        <p class="text-slate-500 font-bold uppercase tracking-[0.2em] text-sm text-center">No Strategic Units Detected</p>
+        <p class="text-slate-400 text-xs mt-2">Initialize a unit to begin asset allocation.</p>
+    </div>
+    {% endfor %}
+</div>
+<div id="memberTaskDetailModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="closeMemberTaskDetails()"></div>
+    
+    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500"></div>
+        
+        <button onclick="closeMemberTaskDetails()" class="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 rounded-full transition-all z-10">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10">
+            <div class="flex items-start gap-5 mb-10">
+                <div class="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-2xl text-blue-600 shadow-sm border border-blue-100/50">
+                    <i class="bi bi-person-lines-fill"></i>
+                </div>
+                <div class="space-y-1">
+                    <h3 id="memberTaskDetailName" class="text-3xl font-bold text-slate-900 tracking-tight"></h3>
+                    <div class="flex items-center gap-3">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-2 py-0.5 rounded">Task Dossier</span>
+                        <p id="memberTaskDetailMeta" class="text-xs font-semibold text-slate-400"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between px-2">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Active Assignments</h4>
+                    <div class="h-px flex-1 bg-slate-100 mx-4"></div>
+                </div>
+                
+                <div id="memberTaskDetailList" class="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+                    </div>
+            </div>
+        </div>
+
+        <div class="p-6 bg-slate-50/80 border-t border-slate-100 flex justify-end">
+            <button onclick="closeMemberTaskDetails()" class="px-6 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-900 transition-colors">
+                Dismiss View
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Custom Scrollbar for a cleaner look */
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #cbd5e1;
+    }
+</style>
+
+<div id="teamDetailModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onclick="closeTeamModal()"></div>
+    
+    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-gradient-to-r from-blue-600 to-blue-500"></div>
+        
+        <button onclick="closeTeamModal()" class="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-full transition-all z-10">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10">
+            <div class="flex items-end gap-5 mb-10 pb-8 border-b border-slate-100">
+                <div class="w-20 h-20 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white text-3xl shadow-xl shadow-slate-200">
+                    <i class="bi bi-shield-shaded"></i>
+                </div>
+                <div class="pb-1">
+                    <h3 id="teamModalName" class="text-3xl font-extrabold text-slate-900 tracking-tight leading-none"></h3>
+                    <div class="flex items-center gap-2 mt-3">
+                        <span id="teamModalDepartment" class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 bg-blue-50 px-2 py-1 rounded"></span>
+                        <span class="text-slate-300">•</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unit Status: Operational</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-10">
+                <div class="p-5 bg-slate-50/50 rounded-3xl border border-slate-100 group hover:bg-white hover:border-blue-100 transition-all">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Unit Command</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
+                            <i class="bi bi-person-badge-fill"></i>
+                        </div>
+                        <div id="teamModalLeader" class="text-sm font-bold text-slate-800"></div>
+                    </div>
+                </div>
+
+                <div class="p-5 bg-slate-50/50 rounded-3xl border border-slate-100 group hover:bg-white hover:border-emerald-100 transition-all">
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3">Linked Objective</p>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                            <i class="bi bi-rocket-takeoff-fill"></i>
+                        </div>
+                        <a id="teamModalProjectLink" href="/manager/projects" class="text-sm font-bold text-slate-800 hover:text-emerald-600 transition-colors truncate"></a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="flex items-center justify-between px-2">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Personnel Performance Registry</h4>
+                    <span class="h-px flex-1 bg-slate-100 mx-4"></span>
+                </div>
+
+                <div class="max-h-64 overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                    <div id="teamModalTaskStatus" class="space-y-3"></div>
+                    <p id="teamModalTaskEmpty" class="text-center py-8 text-xs text-slate-400 italic hidden">No active task data available for this unit.</p>
+                </div>
+            </div>
+        </div>
+
+        <ul id="teamModalMembers" class="hidden"></ul>
+        <p id="teamModalEmpty" class="hidden"></p>
+
+        <div class="px-10 py-6 bg-slate-50/80 border-t border-slate-100 flex justify-between items-center">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">TeamSync Professional v2.0</p>
+            <button onclick="closeTeamModal()" class="px-8 py-2.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-600 transition-all">
+                Close Registry
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="assignMemberModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="document.getElementById('assignMemberModal').classList.add('hidden')"></div>
+    
+    <div class="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-blue-600"></div>
+        
+        <button onclick="document.getElementById('assignMemberModal').classList.add('hidden')" class="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10 sm:p-12">
+            <div class="mb-10 text-center sm:text-left">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl mb-4 border border-blue-100">
+                    <i class="bi bi-person-plus-fill text-2xl"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">Resource Allocation</h3>
+                <p class="text-xs font-medium text-slate-400 mt-3 uppercase tracking-widest">Personnel // Unit Mapping Registry</p>
+            </div>
+            
+            <form action="/manager/assign_member" method="POST" class="space-y-6">
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Select Personnel</label>
+                    <div class="relative">
+                        <select name="employee_id" required class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 appearance-none transition-all cursor-pointer">
+                            <option value="" disabled selected>-- Identify Staff --</option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.employee_id }}">{{ emp.name }} • {{ emp.department }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Target Strategic Unit</label>
+                    <div class="relative">
+                        <select name="team_id" required class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 appearance-none transition-all cursor-pointer">
+                            <option value="" disabled selected>-- Assign To Unit --</option>
+                            {% for item in team_data %}
+                                <option value="{{ item.team.id }}">{{ item.team.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-8 border-t border-slate-50">
+                    <button type="button" onclick="document.getElementById('assignMemberModal').classList.add('hidden')" 
+                            class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
+                        Abort Process
+                    </button>
+                    <button type="submit" class="px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-100 transition-all flex items-center gap-2">
+                        <span>Confirm Allocation</span>
+                        <i class="bi bi-arrow-right-short text-lg"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="createTeamModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onclick="document.getElementById('createTeamModal').classList.add('hidden')"></div>
+    
+    <div class="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-gradient-to-r from-blue-600 to-blue-600"></div>
+        
+        <button onclick="document.getElementById('createTeamModal').classList.add('hidden')" class="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all z-10">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10 sm:p-12">
+            <div class="mb-10 flex flex-col items-center sm:items-start">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl mb-4 border border-blue-100 shadow-sm">
+                    <i class="bi bi-building-add text-2xl"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">Unit Initialization</h3>
+                <p class="text-[10px] font-bold text-slate-400 mt-3 uppercase tracking-[0.3em]">Operational Setup // Strategic Deployment</p>
+            </div>
+            
+            <form action="/manager/create_team" method="POST" class="space-y-6">
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Unit Nomenclature</label>
+                    <div class="relative">
+                        <i class="bi bi-tag absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors"></i>
+                        <input type="text" name="name" required placeholder="E.G. OPERATIONS_ALPHA" 
+                               class="w-full bg-slate-50 border border-slate-100 pl-12 pr-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 transition-all placeholder:text-slate-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Division</label>
+                        <div class="relative">
+                            <select name="department" required class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 appearance-none transition-all cursor-pointer">
+                                <option value="" disabled selected>Identify Division</option>
+                                {% for dept in departments %}
+                                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Project Link</label>
+                        <div class="relative">
+                            <select name="project_id" required class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 appearance-none transition-all cursor-pointer">
+                                <option value="" disabled selected>Link Project</option>
+                                {% for project in projects %}
+                                    <option value="{{ project.id }}">{{ project.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Designated Lead (Optional)</label>
+                    <div class="relative">
+                        <select name="leader_employee_id" class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-blue-50 focus:border-blue-500 appearance-none transition-all cursor-pointer">
+                            <option value="">-- NO LEAD ASSIGNED --</option>
+                            {% for emp in employees %}
+                                <option value="{{ emp.employee_id }}">{{ emp.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-8 border-t border-slate-50">
+                    <button type="button" onclick="document.getElementById('createTeamModal').classList.add('hidden')" 
+                            class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
+                        Abort Initialization
+                    </button>
+                    <button type="submit" class="px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-100 transition-all flex items-center gap-2">
+                        <span>Initialize Unit</span>
+                        <i class="bi bi-hdd-network-fill"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="createProjectModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="document.getElementById('createProjectModal').classList.add('hidden')"></div>
+    
+    <div class="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-gradient-to-r from-emerald-500 to-teal-600"></div>
+        
+        <button onclick="document.getElementById('createProjectModal').classList.add('hidden')" class="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all z-10">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10 sm:p-12">
+            <div class="mb-10 text-center sm:text-left">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl mb-4 border border-emerald-100 shadow-sm">
+                    <i class="bi bi-rocket-takeoff text-2xl"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">Project Initiation</h3>
+                <p class="text-[10px] font-bold text-slate-400 mt-3 uppercase tracking-[0.3em]">Lifecycle Management // Objective Setting</p>
+            </div>
+            
+            <form action="/manager/create_project" method="POST" class="space-y-6">
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-emerald-600 transition-colors">Project Nomenclature</label>
+                    <div class="relative">
+                        <i class="bi bi-pencil-square absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors"></i>
+                        <input type="text" name="name" required placeholder="E.G. OPERATIONS_Q2_EXPANSION" 
+                               class="w-full bg-slate-50 border border-slate-100 pl-12 pr-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 transition-all placeholder:text-slate-300">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-emerald-600 transition-colors">Department</label>
+                        <div class="relative">
+                            <select name="department" required class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 appearance-none transition-all cursor-pointer">
+                                <option value="" disabled selected>Identify Dept.</option>
+                                {% for dept in departments %}
+                                    <option value="{{ dept.name }}">{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-emerald-600 transition-colors">Target Deadline</label>
+                        <div class="relative">
+                            <input type="date" id="createProjectDeadline" name="deadline" required 
+                                   class="w-full bg-slate-50 border border-slate-100 px-5 py-3.5 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 transition-all cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-emerald-600 transition-colors">Unit Linkage (Operational Partner)</label>
+                    <div class="relative">
+                        <select name="team_id" class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-emerald-50 focus:border-emerald-500 appearance-none transition-all cursor-pointer">
+                            <option value="">-- NO UNIT ASSIGNED --</option>
+                            {% for item in team_data %}
+                                <option value="{{ item.team.id }}">{{ item.team.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-8 border-t border-slate-50">
+                    <button type="button" onclick="document.getElementById('createProjectModal').classList.add('hidden')" 
+                            class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
+                        Abort Entry
+                    </button>
+                    <button type="submit" class="px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-100 transition-all flex items-center gap-3">
+                        <span>Initialize Project</span>
+                        <i class="bi bi-check-circle-fill"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="teamTaskModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-md" onclick="closeTeamTaskModal()"></div>
+    
+    <div class="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300">
+        <div class="h-1.5 w-full bg-slate-900"></div>
+        
+        <button onclick="closeTeamTaskModal()" class="absolute top-8 right-8 p-2 text-slate-300 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all z-10">
+            <i class="bi bi-x-lg text-lg"></i>
+        </button>
+
+        <div class="p-10 sm:p-12">
+            <div class="mb-8">
+                <div class="inline-flex items-center justify-center w-14 h-14 bg-slate-50 text-slate-900 rounded-2xl mb-4 border border-slate-100 shadow-sm">
+                    <i class="bi bi-clipboard-check text-2xl"></i>
+                </div>
+                <h3 class="text-3xl font-extrabold text-slate-900 tracking-tight leading-none">Task Dispatch</h3>
+                <p class="text-[10px] font-bold text-slate-400 mt-3 uppercase tracking-[0.3em]">Operational Directive // Personnel Assignment</p>
+            </div>
+            
+            <form action="/manager/team_tasks/create" method="POST" class="space-y-5">
+                <input type="hidden" name="team_id" id="teamTaskTeamId">
+
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Objective Title</label>
+                    <input type="text" name="title" required placeholder="E.G. SYSTEMS_AUDIT_LOG" 
+                           class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-900 transition-all placeholder:text-slate-300">
+                </div>
+
+                <div class="group">
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Briefing Details</label>
+                    <textarea name="description" rows="3" placeholder="Provide operational context..." 
+                              class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-medium text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-900 transition-all placeholder:text-slate-300 resize-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Priority Level</label>
+                        <div class="relative">
+                            <select name="priority" class="w-full bg-slate-50 border border-slate-100 px-5 py-4 rounded-2xl text-xs font-bold text-slate-700 uppercase outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-900 appearance-none transition-all cursor-pointer">
+                                <option value="low">Alpha (Low)</option>
+                                <option value="medium" selected>Beta (Medium)</option>
+                                <option value="high">Gamma (High)</option>
+                            </select>
+                            <i class="bi bi-chevron-down absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-[10px]"></i>
+                        </div>
+                    </div>
+
+                    <div class="group">
+                        <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1 block group-focus-within:text-blue-600 transition-colors">Target Deadline</label>
+                        <input type="date" name="due_date" 
+                               class="w-full bg-slate-50 border border-slate-100 px-5 py-3.5 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-4 focus:ring-slate-100 focus:border-slate-900 transition-all cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1 block">Personnel Allocation</label>
+                    <div id="teamTaskAssignees" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                        </div>
+                    <p id="teamTaskAssigneesEmpty" class="text-[10px] font-bold text-amber-500 uppercase tracking-widest mt-2 hidden">
+                        <i class="bi bi-exclamation-triangle mr-1"></i> No personnel available for this unit.
+                    </p>
+                </div>
+
+                <div class="flex items-center justify-between pt-6 border-t border-slate-50">
+                    <button type="button" onclick="closeTeamTaskModal()" 
+                            class="text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors">
+                        Abort Dispatch
+                    </button>
+                    <button type="submit" class="px-8 py-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-100 transition-all flex items-center gap-3">
+                        <span>Deploy Task</span>
+                        <i class="bi bi-send-fill text-xs"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getTodayIsoDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function openCreateProjectModal() {
+        const deadlineInput = document.getElementById('createProjectDeadline');
+        if (deadlineInput) {
+            deadlineInput.setAttribute('min', getTodayIsoDate());
+        }
+        document.getElementById('createProjectModal').classList.remove('hidden');
+    }
+
+    function openCreateTeamModal() {
+        document.getElementById('createTeamModal').classList.remove('hidden');
+        refreshLeaderOptions();
+    }
+
+    function refreshLeaderOptions() {
+        const select = document.getElementById('leaderEmployeeSelect');
+        if (!select) return;
+
+        fetch('/manager/eligible_leaders')
+            .then(r => r.json())
+            .then(data => {
+                if (!data || !data.ok || !Array.isArray(data.leaders)) return;
+                select.innerHTML = '';
+
+                const defaultOpt = document.createElement('option');
+                defaultOpt.value = '';
+                defaultOpt.textContent = '-- UNASSIGNED --';
+                select.appendChild(defaultOpt);
+
+                data.leaders.forEach(emp => {
+                    if (!emp.employee_id) return;
+                    const opt = document.createElement('option');
+                    opt.value = emp.employee_id;
+                    let label = `${emp.name} (${emp.employee_id})`;
+                    if (emp.role === 'manager') label += ' (Manager)';
+                    else if (emp.role === 'team_lead') label += ' (Team Lead)';
+                    opt.textContent = label;
+                    select.appendChild(opt);
+                });
+            })
+            .catch(() => {});
+    }
+
+    function filterTeams() {
+        let input = document.getElementById('teamSearch').value.toUpperCase();
+        let cards = document.getElementsByClassName('team-card');
+        
+        for (let i = 0; i < cards.length; i++) {
+            let data = cards[i].getAttribute('data-search').toUpperCase();
+            cards[i].style.display = data.indexOf(input) > -1 ? "" : "none";
+        }
+    }
+
+    function openTeamModal(card) {
+        const name = card.getAttribute('data-team-name') || '';
+        const department = card.getAttribute('data-team-department') || '';
+        const leader = card.getAttribute('data-team-leader') || 'Unassigned';
+        const project = card.getAttribute('data-team-project') || 'Not linked';
+        const members = JSON.parse(card.getAttribute('data-team-members') || '[]');
+        const memberIds = JSON.parse(card.getAttribute('data-team-member-ids') || '[]');
+        const taskStatus = JSON.parse(card.getAttribute('data-team-task-status') || '[]');
+
+        document.getElementById('teamModalName').textContent = name;
+        document.getElementById('teamModalDepartment').textContent = `Division: ${department}`;
+        document.getElementById('teamModalLeader').textContent = leader;
+        document.getElementById('teamModalProjectLink').textContent = project;
+
+        const list = document.getElementById('teamModalMembers');
+        const empty = document.getElementById('teamModalEmpty');
+        list.innerHTML = '';
+
+        if (!members.length) {
+            empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            members.forEach((member, idx) => {
+                const li = document.createElement('li');
+                const empId = memberIds[idx] ? ` (${memberIds[idx]})` : '';
+                li.textContent = `${member}${empId}`;
+                list.appendChild(li);
+            });
+        }
+
+        const taskWrap = document.getElementById('teamModalTaskStatus');
+        const taskEmpty = document.getElementById('teamModalTaskEmpty');
+        taskWrap.innerHTML = '';
+
+        if (!taskStatus.length) {
+            taskEmpty.classList.remove('hidden');
+        } else {
+            taskEmpty.classList.add('hidden');
+            taskStatus.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between border border-slate-200 rounded px-3 py-2';
+                row.innerHTML = `
+                    <div class="font-bold text-slate-900">${item.name} (${item.employee_id})</div>
+                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${item.completed}/${item.total} • ${item.percent}%</div>
+                `;
+                taskWrap.appendChild(row);
+            });
+        }
+
+        document.getElementById('teamDetailModal').classList.remove('hidden');
+    }
+
+    function closeTeamModal() {
+        document.getElementById('teamDetailModal').classList.add('hidden');
+    }
+
+    function openTeamTaskModal(event, button) {
+        const evt = event || window.event;
+        if (evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+        }
+        const card = button.closest('.team-card');
+        if (!card) return;
+
+        const teamId = card.getAttribute('data-team-id') || '';
+        let members = [];
+        let memberIds = [];
+        try {
+            members = JSON.parse(card.getAttribute('data-team-members') || '[]');
+            memberIds = JSON.parse(card.getAttribute('data-team-member-ids') || '[]');
+        } catch (e) {
+            members = [];
+            memberIds = [];
+        }
+
+        const assigneesWrap = document.getElementById('teamTaskAssignees');
+        const assigneesEmpty = document.getElementById('teamTaskAssigneesEmpty');
+        assigneesWrap.innerHTML = '';
+
+        document.getElementById('teamTaskTeamId').value = teamId;
+
+        if (!members.length) {
+            assigneesEmpty.classList.remove('hidden');
+        } else {
+            assigneesEmpty.classList.add('hidden');
+            members.forEach((member, idx) => {
+                const empId = memberIds[idx] || '';
+                if (!empId) return;
+                const label = document.createElement('label');
+                label.className = 'flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-widest';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.name = 'assignees';
+                checkbox.value = empId;
+
+                const text = document.createElement('span');
+                text.textContent = `${member} (${empId})`;
+
+                label.appendChild(checkbox);
+                label.appendChild(text);
+                assigneesWrap.appendChild(label);
+            });
+        }
+
+        document.getElementById('teamTaskModal').classList.remove('hidden');
+    }
+
+    function closeTeamTaskModal() {
+        document.getElementById('teamTaskModal').classList.add('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const deadlineInput = document.getElementById('createProjectDeadline');
+        if (deadlineInput) {
+            deadlineInput.setAttribute('min', getTodayIsoDate());
+        }
+
+        document.querySelectorAll('.team-card').forEach(card => {
+            card.addEventListener('click', function() {
+                openTeamModal(this);
+            });
+            card.addEventListener('touchstart', function() {
+                openTeamModal(this);
+            }, { passive: true });
+        });
+
+        document.querySelectorAll('.team-action').forEach(el => {
+            el.addEventListener('click', function(event) {
+                event.stopPropagation();
+            });
+            el.addEventListener('touchstart', function(event) {
+                event.stopPropagation();
+            }, { passive: true });
+        });
+    });
+
+</script>
+<script>
+// --- Duplicate Confirmation Modal Logic ---
+let duplicateContinueCallback = null;
+const LEADER_DUP_ACCEPT_KEY = 'acceptedDuplicateLeaders';
+const MEMBER_DUP_ACCEPT_KEY = 'acceptedDuplicateMembers';
+
+function getAcceptedSet(key) {
+    try {
+        const raw = sessionStorage.getItem(key);
+        const arr = raw ? JSON.parse(raw) : [];
+        return new Set(Array.isArray(arr) ? arr : []);
+    } catch (e) {
+        return new Set();
+    }
+}
+
+function saveAcceptedSet(key, setObj) {
+    try {
+        sessionStorage.setItem(key, JSON.stringify(Array.from(setObj)));
+    } catch (e) {}
+}
+function showDuplicateConfirmModal(message, onContinue) {
+    document.getElementById('duplicateConfirmMsg').textContent = message;
+    document.getElementById('duplicateConfirmModal').classList.remove('hidden');
+    duplicateContinueCallback = onContinue;
+}
+function closeDuplicateConfirmModal() {
+    document.getElementById('duplicateConfirmModal').classList.add('hidden');
+    duplicateContinueCallback = null;
+}
+document.getElementById('duplicateContinueBtn').onclick = function(e) {
+    e.preventDefault();
+    const cb = duplicateContinueCallback;
+    closeDuplicateConfirmModal();
+    if (typeof cb === 'function') cb();
+};
+document.getElementById('duplicateCancelBtn').onclick = function(e) {
+    e.preventDefault();
+    closeDuplicateConfirmModal();
+};
+
+// --- Team Leader Duplicate Check ---
+document.getElementById('createTeamForm').addEventListener('submit', function(e) {
+    if (this.dataset.duplicateOverride === '1') {
+        this.dataset.duplicateOverride = '0';
+        return;
+    }
+    const leaderSelect = this.querySelector('select[name="leader_employee_id"]');
+    const leaderId = leaderSelect ? leaderSelect.value : '';
+    if (leaderId) {
+        e.preventDefault();
+        const form = this;
+        const formData = new FormData();
+        formData.append('employee_id', leaderId);
+        formData.append('check_type', 'leader');
+        fetch('/manager/check_member_status', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.duplicate) {
+                    showDuplicateConfirmModal(`${data.message} Continue anyway?`, function() {
+                        form.dataset.duplicateOverride = '1';
+                        form.requestSubmit();
+                    });
+                } else {
+                    form.submit();
+                }
+            })
+            .catch(() => form.submit());
+    }
+});
+
+// --- Team Member Duplicate Check ---
+document.getElementById('assignMemberForm').addEventListener('submit', function(e) {
+    if (this.dataset.duplicateOverride === '1') {
+        this.dataset.duplicateOverride = '0';
+        return;
+    }
+    const empSelect = this.querySelector('select[name="employee_id"]');
+    const empId = empSelect ? empSelect.value : '';
+    const acceptedMembers = getAcceptedSet(MEMBER_DUP_ACCEPT_KEY);
+    if (empId && acceptedMembers.has(empId)) {
+        return;
+    }
+    if (empId) {
+        e.preventDefault();
+        const form = this;
+        const formData = new FormData();
+        formData.append('employee_id', empId);
+        formData.append('check_type', 'member');
+        fetch('/manager/check_member_status', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(data => {
+                if (data.duplicate) {
+                    showDuplicateConfirmModal(`${data.message} Continue anyway?`, function() {
+                        const accepted = getAcceptedSet(MEMBER_DUP_ACCEPT_KEY);
+                        accepted.add(empId);
+                        saveAcceptedSet(MEMBER_DUP_ACCEPT_KEY, accepted);
+                        form.dataset.duplicateOverride = '1';
+                        form.requestSubmit();
+                    });
+                } else {
+                    form.submit();
+                }
+            })
+            .catch(() => form.submit());
+    }
+});
+</script>
+{% endblock %}

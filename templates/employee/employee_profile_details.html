@@ -1,0 +1,375 @@
+{% extends "common/layout_base.html" %}
+{% block page_title %}Employee Profile{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --brand-primary: #4f46e5;
+    --brand-light: #eef2ff;
+    --brand-secondary: #0f172a;
+    --surface-card: #ffffff;
+    --surface-bg: #f8fafc;
+    --accent-emerald: #10b981;
+    --text-main: #1e293b;
+    --text-dim: #64748b;
+    --border-soft: #f1f5f9;
+    --anim-speed: 0.4s;
+  }
+
+  /* Entrance Animations */
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  body { 
+    background-color: var(--surface-bg);
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .profile-container {
+    max-width: 1100px;
+    margin: 2.5rem auto;
+    padding: 0 1.5rem;
+    animation: fadeIn var(--anim-speed) ease-out;
+  }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+  }
+
+  @media (max-width: 900px) { .bento-grid { grid-template-columns: 1fr; } }
+
+  /* Premium Card Styles */
+  .premium-card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-soft);
+    border-radius: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: slideUp var(--anim-speed) ease-out backwards;
+  }
+
+  .premium-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
+    border-color: var(--brand-light);
+  }
+
+  /* Identity Sidebar */
+  .avatar-hero {
+    width: 130px;
+    height: 130px;
+    margin: -65px auto 1.5rem;
+    border-radius: 2.5rem;
+    border: 8px solid var(--surface-card);
+    background: linear-gradient(135deg, var(--brand-primary), #195cee);
+    box-shadow: 0 15px 30px -5px rgba(79, 70, 229, 0.3);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3.5rem;
+    font-weight: 800;
+    color: white;
+  }
+
+  /* Inputs & Labels */
+  .data-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .input-field {
+    width: 100%;
+    background: #f8fafc;
+    border: 1.5px solid #edf2f7;
+    border-radius: 1rem;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+
+  .input-field:focus {
+    background: white;
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    outline: none;
+  }
+
+  /* Action Buttons */
+  .btn-action {
+    background: var(--brand-secondary);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 1rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    cursor: pointer;
+  }
+
+  .btn-action:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.2);
+  }
+
+  .btn-action:active { transform: translateY(0); }
+
+  /* Pill Badges */
+  .badge {
+    padding: 0.3rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .badge-primary { background: var(--brand-light); color: var(--brand-primary); }
+  .badge-success { background: #ecfdf5; color: var(--accent-emerald); }
+
+</style>
+
+<div class="profile-container">
+  
+  <header class="flex justify-between items-end mb-16 px-2">
+    <div>
+      <span class="text-xs font-bold text-blue-500 uppercase tracking-widest">Workspace</span>
+      <h1 class="text-3xl font-black text-slate-900 tracking-tight">Employee Profile</h1>
+    </div>
+    <div class="flex gap-4">
+      <a href="/employee/profile/print" class="p-3 bg-white text-slate-400 rounded-2xl border border-slate-100 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">
+        <i class="bi bi-printer"></i>
+      </a>
+      <a href="/employee/profile" class="btn-action">
+        <i class="bi bi-arrow-left"></i> Dashboard
+      </a>
+    </div>
+  </header>
+
+  <div class="bento-grid">
+    
+    <aside class="space-y-6">
+      <div class="premium-card pt-20 p-8 text-center mt-[65px]" style="animation-delay: 0.1s;">
+        <div class="avatar-hero">
+          {% if user.photo_blob or user.photo_path %}
+            <img src="{{ '/employee/photo/' ~ user.employee_id if user.photo_blob else user.photo_path }}" class="w-full h-full object-cover" />
+          {% else %}
+            {{ user.name[0] }}
+          {% endif %}
+        </div>
+        
+        <h3 class="text-2xl font-black text-slate-900 leading-tight">{{ user.name }}</h3>
+        <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2">{{ user.role|default('Staff Member') }}</p>
+        
+        <div class="flex justify-center gap-2 mt-5">
+          <span class="badge badge-primary">{{ user.department or 'Ops' }}</span>
+          <span class="badge badge-success">{{ 'Active' if user.is_active else 'Inactive' }}</span>
+        </div>
+
+        <div class="mt-8 pt-8 border-t border-slate-50 space-y-5 text-left">
+          <div class="flex justify-between items-center">
+            <span class="data-label !mb-0">Employee ID</span>
+            <span class="font-mono text-xs font-bold text-slate-900">#{{ user.employee_id }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="data-label !mb-0">RFID Tag</span>
+            <span class="font-mono text-[10px] bg-slate-50 px-2 py-1 rounded text-slate-500">{{ user.rfid_tag or 'NONE' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="premium-card p-6 bg-blue-50 border-blue-100" style="animation-delay: 0.15s;">
+        <div class="flex items-center gap-3 text-blue-600 mb-2">
+          <i class="bi bi-info-circle-fill"></i>
+          <span class="font-black text-[10px] uppercase tracking-wider">Managed Fields</span>
+        </div>
+        <p class="text-[11px] text-blue-700/70 leading-relaxed font-medium">
+          Note: ID, Role, and RFID are managed by the HR Administrator.
+        </p>
+      </div>
+    </aside>
+
+    <main class="space-y-6">
+      
+      {% if pw_status %}
+      <div class="animate-bounce-short flex items-center gap-3 p-4 rounded-2xl text-xs font-bold {{ 'bg-emerald-50 text-emerald-700' if pw_status == 'updated' else 'bg-rose-50 text-rose-700' }}">
+        <i class="bi {{ 'bi-check-circle' if pw_status == 'updated' else 'bi-x-circle' }}"></i>
+        {{ 'Security changes saved successfully.' if pw_status == 'updated' else 'Action failed: Check your details.' }}
+      </div>
+      {% endif %}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="premium-card p-8" style="animation-delay: 0.2s;">
+          <div class="flex items-center gap-4 mb-8">
+            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+              <i class="bi bi-briefcase"></i>
+            </div>
+            <h4 class="font-black text-slate-800 uppercase tracking-tight">Work Details</h4>
+          </div>
+          <div class="space-y-6">
+            <div>
+              <span class="data-label">Current Team</span>
+              <span class="text-sm font-bold text-slate-700">{{ user.team.name if user.team else 'Not Assigned' }}</span>
+            </div>
+            <div>
+              <span class="data-label">Official Title</span>
+              <span class="text-sm font-bold text-slate-700">{{ user.title or 'Staff' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="premium-card p-8 border-l-4 border-l-indigo-600" style="animation-delay: 0.25s;">
+          <div class="flex flex-col h-full justify-between">
+            <div>
+              <h4 class="font-black text-slate-800 uppercase tracking-tight mb-2">Security</h4>
+              <p class="text-xs text-slate-400 font-medium">Update your account password and security preferences.</p>
+            </div>
+            <button id="openPasswordModal" class="btn-action w-full justify-center mt-6">
+              Change Password
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="premium-card" style="animation-delay: 0.3s;">
+        <div class="p-6 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+          <h4 class="font-black text-slate-800 uppercase tracking-tight text-sm">Personal Information</h4>
+          <!-- <i class="bi bi-pencil-square text-slate-300"></i> -->
+        </div>
+        <form method="post" action="/employee/profile/update" class="p-8 space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-2">
+              <label class="data-label">Official Phone</label>
+              <input type="text" name="phone" value="{{ user.phone }}" class="input-field" />
+            </div>
+            <div class="space-y-2">
+              <label class="data-label">Email Address</label>
+              <input type="email" name="email" value="{{ user.email }}" class="input-field" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <label class="data-label">Residential Address</label>
+            <textarea name="address" rows="3" class="input-field resize-none">{{ user.address }}</textarea>
+          </div>
+          <div class="flex justify-end pt-4">
+            <button type="submit" class="btn-action px-10">
+              Update Profile Details
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="passwordModal" class="fixed inset-0 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm z-50 p-6">
+  <div class="premium-card w-full max-w-md overflow-hidden bg-white">
+    <div class="bg-indigo-600 p-8 text-white">
+      <div class="flex justify-between items-start">
+        <h3 class="text-2xl font-black">Security</h3>
+        <button type="button" id="closePasswordModal" class="text-indigo-200 hover:text-white transition-colors">
+          <i class="bi bi-x-circle-fill text-xl"></i>
+        </button>
+      </div>
+      <p class="text-indigo-100 text-xs mt-1 font-medium">Reset your account access credentials.</p>
+    </div>
+    <form method="post" action="/employee/password/change" class="p-8 space-y-5">
+      <div class="space-y-2">
+        <label class="data-label">Current Password</label>
+        <input type="password" name="current_password" class="input-field" required />
+      </div>
+      <div class="space-y-2">
+        <label class="data-label">New Password</label>
+        <input type="password" name="new_password" class="input-field" minlength="6" required />
+      </div>
+      <div class="space-y-2">
+        <label class="data-label">Confirm Password</label>
+        <input type="password" name="confirm_password" class="input-field" minlength="6" required />
+      </div>
+      <button type="submit" class="btn-action w-full justify-center py-4 mt-4">
+        Save Security Settings
+      </button>
+    </form>
+  </div>
+</div>
+
+
+
+
+<script>
+  const openPasswordModal = document.getElementById('openPasswordModal');
+  const passwordModal = document.getElementById('passwordModal');
+  const closePasswordModal = document.getElementById('closePasswordModal');
+  const cancelPasswordModal = document.getElementById('cancelPasswordModal');
+
+  function hidePasswordModal() {
+    if (!passwordModal) {
+      return;
+    }
+    passwordModal.classList.add('hidden');
+    passwordModal.classList.remove('flex');
+  }
+
+  if (openPasswordModal && passwordModal) {
+    openPasswordModal.addEventListener('click', () => {
+      passwordModal.classList.remove('hidden');
+      passwordModal.classList.add('flex');
+    });
+  }
+
+  if (closePasswordModal) {
+    closePasswordModal.addEventListener('click', hidePasswordModal);
+  }
+
+  if (cancelPasswordModal) {
+    cancelPasswordModal.addEventListener('click', hidePasswordModal);
+  }
+
+  if (passwordModal) {
+    passwordModal.addEventListener('click', (event) => {
+      if (event.target === passwordModal) {
+        hidePasswordModal();
+      }
+    });
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      hidePasswordModal();
+    }
+  });
+
+  const toggleButtons = document.querySelectorAll('[data-toggle]');
+  toggleButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const inputId = button.getAttribute('data-toggle');
+      const input = inputId ? document.getElementById(inputId) : null;
+      if (!input) {
+        return;
+      }
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      button.innerHTML = isPassword ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+    });
+  });
+</script>
+{% endblock %}

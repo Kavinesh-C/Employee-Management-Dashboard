@@ -1,0 +1,755 @@
+{% extends "common/layout_base.html" %}
+
+{% block page_title %}Enterprise Meeting Hub{% endblock %}
+
+{% block content %}
+
+<style>
+  :root {
+    --primary: #0f172a;
+    --accent: #2563eb;
+    --accent-glow: rgba(37, 99, 235, 0.15);
+    --surface: #ffffff;
+    --canvas: #f8fafc;
+    --border: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+  }
+
+  body {
+    background: var(--canvas);
+    color: var(--text-main);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* --- LAYOUT --- */
+  .hub-shell {
+    display: flex;
+    gap: 2.5rem;
+    padding: 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    min-height: 90vh;
+  }
+
+  /* --- COMMAND SIDEBAR --- */
+  .command-sidebar {
+    flex: 0 0 400px;
+    position: sticky;
+    top: 2rem;
+    height: fit-content;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 2.5rem;
+    box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
+  }
+
+  .sidebar-header {
+    margin-bottom: 2rem;
+  }
+
+  .sidebar-header h2 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.03em;
+  }
+
+  /* --- FORM REFINEMENT --- */
+  .form-group { margin-bottom: 1.5rem; }
+
+  .form-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 0.6rem;
+    display: block;
+    letter-spacing: 0.05em;
+  }
+
+  .premium-input {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: #f8fafc;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.95rem;
+  }
+
+  .premium-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+    box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+
+  .btn-execute {
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary);
+    color: white;
+    border-radius: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    transition: transform 0.2s, background 0.2s;
+    border: none;
+    cursor: pointer;
+  }
+
+  .btn-execute:hover {
+    background: #000;
+    transform: translateY(-2px);
+  }
+
+  /* --- TIMELINE FEED --- */
+  .timeline-feed { flex: 1; }
+
+  .feed-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .feed-title {
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--primary);
+  }
+
+  .session-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.25rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 2rem;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: pointer;
+  }
+
+  .session-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+    border-color: var(--accent);
+  }
+
+  .time-block {
+    text-align: center;
+    padding-right: 2rem;
+    border-right: 2px solid var(--canvas);
+  }
+
+  .time-main {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--accent);
+  }
+
+  .time-sub {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .title-area h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+  }
+
+  .tag-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.3rem 0.8rem;
+    border-radius: 99px;
+    background: var(--canvas);
+    color: var(--text-muted);
+  }
+
+  .tag-accent {
+    background: var(--accent-glow);
+    color: var(--accent);
+  }
+
+  /* --- MODAL DESIGN --- */
+  .modal-overlay {
+    backdrop-filter: blur(12px);
+    background: rgba(15, 23, 42, 0.3);
+  }
+
+  .modal-window {
+    background: white;
+    border-radius: 32px;
+    width: 100%;
+    max-width: 650px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px -12px rgba(0,0,0,0.25);
+    animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes modalPop {
+    from { transform: scale(0.9) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .modal-hero {
+    background: var(--primary);
+    padding: 3rem;
+    color: white;
+  }
+
+  .modal-body { padding: 3rem; }
+
+  .selected-assignees {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .selected-assignee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .selected-assignee-chip button {
+    border: none;
+    background: transparent;
+    color: #1d4ed8;
+    font-size: 0.8rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .selected-assignees-empty {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+</style>
+
+<div class="hub-shell">
+  <aside class="command-sidebar">
+    <div class="sidebar-header">
+      <h2>Scheduler</h2>
+      <p class="text-sm text-slate-400">Deploy a new team synchronization</p>
+    </div>
+
+    <form action="/manager/create_meeting" method="POST">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <input type="text" name="title" class="premium-input" placeholder="Sprint Planning..." required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Project Domain</label>
+        <select name="project_id" class="premium-input">
+          <option value="">Internal Systems</option>
+          {% for p in projects %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Timestamp</label>
+        <input type="datetime-local" name="meeting_datetime" class="premium-input" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Collaborators</label>
+        <div class="relative">
+          <input id="meetingAssigneeSearch" type="text" class="premium-input" placeholder="Type name...">
+          <div id="meetingAssigneeCards" class="hidden absolute w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto"></div>
+        </div>
+        <input type="hidden" id="meetingAssignees" name="assignees">
+        <div id="meetingSelectedList" class="selected-assignees">
+          <span class="selected-assignees-empty">No collaborators selected.</span>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-execute">
+        <i class="bi bi-send-fill"></i>
+        <span>Confirm Session</span>
+      </button>
+    </form>
+  </aside>
+
+  <main class="timeline-feed">
+    <header class="feed-header">
+      <h1 class="feed-title ">Active <span class="text-blue-600">Timeline.</span></h1>
+      <div class="flex items-center gap-3">
+        <div class="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+        <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Live Updates</span>
+      </div>
+    </header>
+
+    {% for meeting in meetings %}
+    <div class="session-card meeting-card"
+         onclick="openDetail(this)"
+         data-title="{{ meeting.title | e }}"
+         data-datetime="{{ meeting.meeting_datetime | e }}"
+         data-project="{{ meeting.project_name | e }}"
+         data-description="{{ meeting.description | e }}"
+         data-link="{{ meeting.meeting_link | e }}"
+         data-organizer="{{ meeting.organizer | e }}"
+         data-assignees="{{ meeting.attendees | e }}"
+         data-attended="{{ meeting.attended | e }}"
+         data-not-attended="{{ meeting.not_attended | e }}">
+      
+      <div class="time-block">
+        <div class="time-main">{{ meeting.meeting_datetime.split(' ')[1] if ' ' in meeting.meeting_datetime else meeting.meeting_datetime }}</div>
+        <div class="time-sub">EST / Local</div>
+      </div>
+
+      <div class="title-area">
+        <h3>{{ meeting.title }}</h3>
+        <div class="tag-group">
+          <span class="tag tag-accent"><i class="bi bi-diagram-3 mr-1"></i> {{ meeting.project_name }}</span>
+          <span class="tag"><i class="bi bi-person-badge mr-1"></i> {{ meeting.organizer }}</span>
+        </div>
+      </div>
+
+      <div class="action-area">
+        {% if meeting.meeting_link %}
+        <a href="{{ meeting.meeting_link }}" target="_blank" onclick="event.stopPropagation()" class="h-12 w-12 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-200 text-slate-900 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all">
+          <i class="bi bi-camera-video-fill"></i>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-32 opacity-40">
+      <i class="bi bi-cloud-slash text-6xl mb-4"></i>
+      <p class="font-bold">No sessions active</p>
+    </div>
+    {% endfor %}
+  </main>
+</div>
+
+<div id="meetingDetailModal" class="fixed inset-0 hidden items-center justify-center z-50 p-4 modal-overlay">
+  <div class="absolute inset-0" id="meetingDetailBackdrop"></div>
+  <div class="modal-window" id="meetingDetailWindow">
+    <div class="modal-hero">
+      <div class="flex justify-between items-start mb-8">
+        <span class="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Meeting Analytics</span>
+        <button id="closeMeetingDetail" class="text-white opacity-40 hover:opacity-100 transition-opacity">
+          <i class="bi bi-x-lg text-xl"></i>
+        </button>
+      </div>
+      <h2 id="detailTitle" class="text-4xl font-black tracking-tighter mb-2"></h2>
+      <div id="detailMeta" class="text-blue-400 font-bold text-sm"></div>
+    </div>
+    <div class="modal-body">
+      <label class="form-label">Objective</label>
+      <p id="detailDescription" class="text-lg text-slate-600 leading-relaxed mb-8"></p>
+      
+      <div class="grid grid-cols-2 gap-8 border-t border-slate-100 pt-8">
+        <div>
+          <label class="form-label">Organizer</label>
+          <div id="detailOrganizer" class="font-bold text-slate-900"></div>
+        </div>
+        <div>
+          <label class="form-label">Digital Venue</label>
+          <a id="detailLink" href="#" target="_blank" class="text-blue-600 font-bold hover:underline block truncate"></a>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="border rounded-xl p-4 bg-blue-50/60">
+          <div class="label">Sent To</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailAssignees"></div>
+            <button type="button" class="mono" id="viewAssigneesBtn">View all</button>
+          </div>
+        </div>
+        <div class="border rounded-xl p-4 bg-emerald-50/60">
+          <div class="label">Attended</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailAttended"></div>
+            <button type="button" class="mono" id="viewAttendedBtn">View all</button>
+          </div>
+        </div>
+        <div class="border rounded-xl p-4 bg-rose-50/60">
+          <div class="label">Not Attended</div>
+          <div class="flex items-center justify-between gap-2">
+            <div class="text-sm font-medium scroll-box" id="detailNotAttended"></div>
+            <button type="button" class="mono" id="viewNotAttendedBtn">View all</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="meetingListModal" class="fixed inset-0 hidden items-center justify-center z-50 p-4 modal-overlay" style="z-index: 70;">
+  <div class="absolute inset-0" id="meetingListBackdrop"></div>
+  <div class="relative bg-white w-full max-w-xl rounded-2xl border border-slate-200 shadow-2xl p-6" id="meetingListWindow">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="meetingListTitle" class="text-lg font-black text-slate-900">Participants</h3>
+      <button id="closeMeetingList" type="button" class="text-slate-400 hover:text-slate-700">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+    <ul id="meetingListItems" class="space-y-2 max-h-80 overflow-y-auto"></ul>
+  </div>
+</div>
+
+<script>
+const meetingSearch = document.getElementById('meetingAssigneeSearch');
+const meetingCards = document.getElementById('meetingAssigneeCards');
+const meetingAssigneesInput = document.getElementById('meetingAssignees');
+const meetingSelectedList = document.getElementById('meetingSelectedList');
+const selectedIds = new Set();
+const selectedEmployees = new Map();
+let searchTimer = null;
+
+function closeMeetingSuggestions() {
+  if (!meetingCards) return;
+  meetingCards.classList.add('hidden');
+}
+
+function syncAssigneesInput() {
+  if (!meetingAssigneesInput) return;
+  meetingAssigneesInput.value = Array.from(selectedIds).join(',');
+}
+
+function renderSelectedAssignees() {
+  if (!meetingSelectedList) return;
+  if (!selectedEmployees.size) {
+    meetingSelectedList.innerHTML = '<span class="selected-assignees-empty">No collaborators selected.</span>';
+    return;
+  }
+  meetingSelectedList.innerHTML = Array.from(selectedEmployees.entries())
+    .map(([id, name]) => `
+      <span class="selected-assignee-chip">
+        ${name} <span class="mono">#${id}</span>
+        <button type="button" data-remove-assignee="${id}" aria-label="Remove ${name}">&times;</button>
+      </span>
+    `)
+    .join('');
+}
+
+function renderMeetingResults(items) {
+  if (!meetingCards) return;
+  meetingCards.innerHTML = '';
+  if (!items.length) {
+    meetingCards.classList.add('hidden');
+    return;
+  }
+  items.forEach(emp => {
+    const card = document.createElement('div');
+    card.className = 'assignee-card meeting-assignee-card';
+    card.dataset.empId = emp.employee_id;
+    card.dataset.empName = emp.name;
+    if (selectedIds.has(emp.employee_id)) {
+      card.classList.add('active');
+    }
+
+    const left = document.createElement('div');
+    left.innerHTML = `${emp.name} <span class="mono">#${emp.employee_id}</span>`;
+    const check = document.createElement('div');
+    check.className = 'assignee-check' + (selectedIds.has(emp.employee_id) ? '' : ' hidden');
+    check.textContent = '✓';
+
+    card.appendChild(left);
+    card.appendChild(check);
+
+    card.addEventListener('click', () => {
+      const id = emp.employee_id;
+      if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+        selectedEmployees.delete(id);
+        card.classList.remove('active');
+        check.classList.add('hidden');
+      } else {
+        selectedIds.add(id);
+        selectedEmployees.set(id, emp.name);
+        card.classList.add('active');
+        check.classList.remove('hidden');
+      }
+      syncAssigneesInput();
+      renderSelectedAssignees();
+      closeMeetingSuggestions();
+      if (meetingSearch) {
+        meetingSearch.value = '';
+        meetingSearch.blur();
+      }
+    });
+
+    meetingCards.appendChild(card);
+  });
+  meetingCards.classList.remove('hidden');
+}
+
+async function fetchParticipants(term) {
+  const response = await fetch(`/manager/participant_search?q=${encodeURIComponent(term)}`);
+  if (!response.ok) return [];
+  return await response.json();
+}
+
+if (meetingSearch) {
+  meetingSearch.addEventListener('focus', () => {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(async () => {
+      const term = meetingSearch.value.trim();
+      const results = await fetchParticipants(term);
+      renderMeetingResults(Array.isArray(results) ? results : []);
+    }, 100);
+  });
+
+  meetingSearch.addEventListener('input', () => {
+    const term = meetingSearch.value.trim();
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+    }
+    searchTimer = setTimeout(async () => {
+      const results = await fetchParticipants(term);
+      renderMeetingResults(Array.isArray(results) ? results : []);
+    }, 200);
+  });
+
+  meetingSearch.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeMeetingSuggestions();
+      meetingSearch.blur();
+    }
+  });
+}
+
+if (meetingSelectedList) {
+  meetingSelectedList.addEventListener('click', (event) => {
+    const target = event.target.closest('[data-remove-assignee]');
+    if (!target) return;
+    const id = target.getAttribute('data-remove-assignee');
+    if (!id) return;
+    selectedIds.delete(id);
+    selectedEmployees.delete(id);
+    syncAssigneesInput();
+    renderSelectedAssignees();
+  });
+}
+
+syncAssigneesInput();
+renderSelectedAssignees();
+
+document.addEventListener('click', (event) => {
+  if (!meetingCards || !meetingSearch) return;
+  const insideSearch = meetingSearch.contains(event.target);
+  const insideCards = meetingCards.contains(event.target);
+  if (!insideSearch && !insideCards) {
+    closeMeetingSuggestions();
+  }
+});
+
+function generateMeetingLink() {
+  const base = 'https://meet.jit.si/';
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  const room = `teamsync_${timestamp}_${random}`;
+  return { room, link: `${base}${room}` };
+}
+
+const meetingLinkPreview = document.getElementById('meetingLinkPreview');
+const meetingLinkInput = document.getElementById('meetingLinkInput');
+const meetingRoomInput = document.getElementById('meetingRoomInput');
+const regenerateBtn = document.getElementById('regenerateMeetingLink');
+
+function refreshMeetingLink() {
+  const data = generateMeetingLink();
+  if (meetingLinkPreview) meetingLinkPreview.value = data.link;
+  if (meetingLinkInput) meetingLinkInput.value = data.link;
+  if (meetingRoomInput) meetingRoomInput.value = data.room;
+}
+
+refreshMeetingLink();
+if (regenerateBtn) {
+  regenerateBtn.addEventListener('click', refreshMeetingLink);
+}
+
+const today = new Date().toISOString().split('T')[0];
+document.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(input => {
+  input.min = input.type === 'date' ? today : today + 'T00:00';
+});
+
+const filterButtons = Array.from(document.querySelectorAll('[data-filter]'));
+const meetingCardsList = Array.from(document.querySelectorAll('.meeting-card'));
+
+function applyFilter(status) {
+  meetingCardsList.forEach(card => {
+    const cardStatus = card.dataset.status || '';
+    if (status === 'all' || cardStatus === status) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+filterButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyFilter(btn.dataset.filter || 'all');
+  });
+});
+
+const detailModal = document.getElementById('meetingDetailModal');
+const detailBackdrop = document.getElementById('meetingDetailBackdrop');
+const detailClose = document.getElementById('closeMeetingDetail');
+const detailWindow = document.getElementById('meetingDetailWindow');
+const meetingListModal = document.getElementById('meetingListModal');
+const meetingListBackdrop = document.getElementById('meetingListBackdrop');
+const meetingListClose = document.getElementById('closeMeetingList');
+const meetingListWindow = document.getElementById('meetingListWindow');
+const meetingListTitle = document.getElementById('meetingListTitle');
+const meetingListItems = document.getElementById('meetingListItems');
+const viewAssigneesBtn = document.getElementById('viewAssigneesBtn');
+const viewAttendedBtn = document.getElementById('viewAttendedBtn');
+const viewNotAttendedBtn = document.getElementById('viewNotAttendedBtn');
+
+let currentAssignees = [];
+let currentAttended = [];
+let currentNotAttended = [];
+
+function parseList(value) {
+  return (value || '')
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function summarizeList(list) {
+  if (!list.length) return '-';
+  if (list.length <= 2) return list.join(', ');
+  return `${list[0]}, ${list[1]} +${list.length - 2}`;
+}
+
+function openListModal(title, list) {
+  if (!meetingListModal || !meetingListItems || !meetingListTitle) return;
+  meetingListTitle.textContent = title;
+  meetingListItems.innerHTML = '';
+  if (!list.length) {
+    const li = document.createElement('li');
+    li.className = 'text-slate-400 italic';
+    li.textContent = 'No participants.';
+    meetingListItems.appendChild(li);
+  } else {
+    list.forEach(name => {
+      const li = document.createElement('li');
+      li.className = 'p-3 bg-slate-50 border border-slate-100 rounded-lg font-semibold';
+      li.textContent = name;
+      meetingListItems.appendChild(li);
+    });
+  }
+  meetingListModal.classList.remove('hidden');
+  meetingListModal.classList.add('flex');
+  meetingListModal.style.display = 'flex';
+}
+
+function openDetail(card) {
+  document.getElementById('detailTitle').textContent = card.dataset.title || '-';
+  document.getElementById('detailMeta').textContent = `${card.dataset.datetime || ''} · ${card.dataset.project || ''}`.trim();
+  document.getElementById('detailDescription').textContent = card.dataset.description || '-';
+  document.getElementById('detailOrganizer').textContent = card.dataset.organizer || '-';
+  currentAssignees = parseList(card.dataset.assignees);
+  currentAttended = parseList(card.dataset.attended);
+  currentNotAttended = parseList(card.dataset.notAttended);
+  document.getElementById('detailAssignees').textContent = summarizeList(currentAssignees);
+  document.getElementById('detailAttended').textContent = summarizeList(currentAttended);
+  document.getElementById('detailNotAttended').textContent = summarizeList(currentNotAttended);
+  const link = card.dataset.link || '';
+  const linkEl = document.getElementById('detailLink');
+  linkEl.textContent = link || '-';
+  linkEl.href = link || '#';
+  if (!link) {
+    linkEl.classList.add('pointer-events-none');
+  } else {
+    linkEl.classList.remove('pointer-events-none');
+  }
+  detailModal.classList.remove('hidden');
+  detailModal.classList.add('flex');
+}
+
+function closeDetail() {
+  detailModal.classList.add('hidden');
+  detailModal.classList.remove('flex');
+}
+
+function closeListModal() {
+  meetingListModal.classList.add('hidden');
+  meetingListModal.classList.remove('flex');
+  meetingListModal.style.display = 'none';
+}
+
+meetingCardsList.forEach(card => {
+  card.addEventListener('click', () => openDetail(card));
+});
+
+if (detailBackdrop) detailBackdrop.addEventListener('click', closeDetail);
+if (detailClose) detailClose.addEventListener('click', closeDetail);
+if (detailWindow) detailWindow.addEventListener('click', (event) => event.stopPropagation());
+if (meetingListBackdrop) meetingListBackdrop.addEventListener('click', closeListModal);
+if (meetingListClose) meetingListClose.addEventListener('click', closeListModal);
+if (meetingListWindow) meetingListWindow.addEventListener('click', (event) => event.stopPropagation());
+if (viewAssigneesBtn) viewAssigneesBtn.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  openListModal('Sent To', currentAssignees);
+});
+if (viewAttendedBtn) viewAttendedBtn.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  openListModal('Attended', currentAttended);
+});
+if (viewNotAttendedBtn) viewNotAttendedBtn.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  openListModal('Not Attended', currentNotAttended);
+});
+
+const urlParams = new URLSearchParams(window.location.search);
+const emailStatus = urlParams.get('email');
+if (emailStatus === 'sent') {
+  window.showToast?.('Meeting emails sent.', 'success');
+  urlParams.delete('email');
+} else if (emailStatus === 'disabled') {
+  window.showToast?.('Meeting emails not sent. Check SMTP settings.', 'warning');
+  urlParams.delete('email');
+}
+if (!urlParams.has('email')) {
+  const newUrl = `${window.location.pathname}${urlParams.toString() ? `?${urlParams}` : ''}`;
+  window.history.replaceState({}, '', newUrl);
+}
+</script>
+{% endblock %}

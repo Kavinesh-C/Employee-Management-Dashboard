@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Personnel Portal | TeamSync</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+
+<style>
+/* =========================================
+   STARK EXECUTIVE STYLES
+   ========================================= */
+
+:root {
+  --executive-navy: #020617;
+  --executive-border: #262626;
+  --executive-accent: #3b82f6;
+}
+
+body {
+  background: #000000;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+}
+
+/* --- THE NEW MINIMALIST SPLASH --- */
+#splash-screen {
+    background: #000000;
+    transition: all 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+#splash-logo-wrap {
+    filter: blur(20px);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+#splash-text {
+    letter-spacing: 2em; 
+    opacity: 0;
+    transition: all 2s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* Flash Exit Effect */
+#splash-screen.exit-active {
+    background: #ffffff;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* --- LOGIN INTERFACE STYLES --- */
+.left-panel {
+  background: var(--executive-navy);
+  border-right: 1px solid var(--executive-border);
+  position: relative;
+}
+
+.left-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.reveal-text {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: starkReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes starkReveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.terminal-input {
+  background: #0a0a0a;
+  border: 1px solid var(--executive-border);
+  color: white;
+  padding: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.terminal-input:focus {
+  outline: none;
+  border-color: var(--executive-accent);
+}
+
+.auth-btn {
+  background: white;
+  color: black;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 16px;
+  transition: all 0.3s ease;
+}
+
+.auth-btn:hover {
+    background: var(--executive-accent);
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+  <div id="splash-screen" class="fixed inset-0 z-[999] flex flex-col items-center justify-center p-6">
+      <div id="splash-logo-wrap" class="w-32 h-32 mb-12">
+          <img src="/static/assets/logo.png" alt="TS" class="w-full h-full object-contain">
+      </div>
+      
+      <h1 id="splash-text" class="text-xs font-bold text-white uppercase tracking-[1.5em] ml-[1.5em]">
+          TeamSync
+      </h1>
+
+      <div class="mt-20 w-32 h-[1px] bg-zinc-800 relative">
+          <div id="splash-loader" class="absolute top-0 left-0 h-full bg-white w-0 transition-all duration-[2000ms]"></div>
+      </div>
+  </div>
+
+  <div class="min-h-screen flex">
+    <section class="hidden lg:flex w-1/2 left-panel flex-col justify-between p-20">
+      <div class="relative z-10">
+        <div class="flex items-center gap-4 reveal-text">
+            <img src="/static/assets/logo.png" alt="Logo" class="w-10 h-10 object-contain">
+            <span class="text-2xl font-black tracking-tighter uppercase">TeamSync</span>
+        </div>
+      </div>
+
+      <div class="relative z-10 space-y-6">
+        <h1 class="text-6xl font-black tracking-tighter leading-none reveal-text" style="animation-delay: 0.2s;">
+            INTEGRATED WORKPLACE<br>MANAGEMENT.
+        </h1>
+        <div class="h-1 w-20 bg-blue-600"></div>
+        <p class="text-slate-400 font-medium text-lg max-w-sm">
+          A centralized platform for team coordination and operational efficiency.
+        </p>
+      </div>
+
+      <div class="relative z-10 text-[10px] font-bold text-neutral-600 uppercase tracking-widest">
+         v3.6.5 // TeamSync 
+      </div>
+    </section>
+
+    <section class="flex w-full lg:w-1/2 items-center justify-center p-6 right-panel">
+      <div class="w-full max-w-md space-y-10">
+        <div class="space-y-2">
+          <h2 class="text-xs font-black uppercase tracking-[0.4em] text-blue-500">Personnel Portal</h2>
+          <p class="text-3xl font-bold tracking-tight">Sign in to TeamSync</p>
+        </div>
+
+        <form method="post" action="/login" class="space-y-6">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Employee ID</label>
+            <input name="username" class="terminal-input w-full" placeholder="Enter ID" required>
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase tracking-widest text-slate-500">Account Password</label>
+            <input type="password" name="password" class="terminal-input w-full" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="auth-btn w-full">Sign In</button>
+        </form>
+
+        <div class="pt-10 border-t border-neutral-800 text-[10px] font-bold text-neutral-600 uppercase tracking-widest flex justify-between">
+           <span></span>
+            <span class="text-emerald-500">Connection Active</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    window.addEventListener('load', () => {
+        const logo = document.getElementById('splash-logo-wrap');
+        const text = document.getElementById('splash-text');
+        const loader = document.getElementById('splash-loader');
+        const splash = document.getElementById('splash-screen');
+
+        setTimeout(() => {
+            logo.style.filter = "blur(0)";
+            logo.style.opacity = "1";
+            logo.style.transform = "scale(1)";
+            
+            text.style.opacity = "1";
+            text.style.letterSpacing = "1em"; 
+            
+            loader.style.width = "100%";
+        }, 100);
+
+        setTimeout(() => {
+            splash.classList.add('exit-active');
+            setTimeout(() => {
+                splash.style.display = "none";
+            }, 1200);
+        }, 2800);
+    });
+  </script>
+
+</body>
+</html>

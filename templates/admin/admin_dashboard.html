@@ -1,0 +1,300 @@
+{% extends "common/layout_base.html" %}
+
+{% block title %}Executive Intelligence | TeamSync{% endblock %}
+{% block page_title %}SYSTEM_OVERVIEW{% endblock %}
+
+{% block content %}
+
+<!-- HEADER -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-200 pb-8">
+  <div class="flex items-center gap-6">
+    <div class="relative">
+        {% if user.photo_blob or user.photo_path %}
+          <img src="{% if user.photo_blob %}/employee/photo/{{ user.employee_id }}{% else %}{{ user.photo_path }}{% endif %}" 
+               class="w-20 h-20 rounded-0 object-cover border-2 border-slate-900 shadow-[4px_4px_0px_#cbd5e1]" />
+        {% else %}
+          <div class="w-20 h-20 bg-slate-900 text-white flex items-center justify-center text-2xl font-light">
+            {{ user.name[0]|upper }}
+          </div>
+        {% endif %}
+        <div class="absolute -bottom-2 -right-2 bg-blue-600 text-white text-[8px] font-black px-2 py-1 tracking-tighter">ADMIN</div>
+    </div>
+    <div>
+      <h1 class="text-3xl font-light tracking-tighter text-slate-900 uppercase">
+        {{ user.name }} <span class="font-black text-blue-600">.</span>
+      </h1>
+      <p class="text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase mt-1">Personnel ID: {{ user.employee_id }} — System Access: Level 4</p>
+    </div>
+  </div>
+
+  <div class="flex flex-col items-end">
+    <div class="flex gap-2 mb-2">
+        <div class="h-1 w-8 bg-blue-600"></div>
+        <div class="h-1 w-2 bg-slate-200"></div>
+        <div class="h-1 w-2 bg-slate-200"></div>
+    </div>
+    <span class="text-[10px] font-black text-slate-900 tracking-widest uppercase">Command Center Terminal</span>
+    <span class="text-[10px] text-slate-400 font-mono">{{ current_time }}</span>
+  </div>
+</div>
+
+
+<!-- METRICS -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+    <div class="bg-white border border-slate-200 p-5 group hover:border-slate-900 transition-all">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">01. Live Presence</div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-black tracking-tighter text-slate-900">{{ present_count }}</span>
+            <span class="text-xs font-bold text-blue-600 uppercase">Active</span>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 p-5">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">02. Blocks Occupied</div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-black tracking-tighter text-slate-900">{{ blocks|length }}</span>
+            <span class="text-xs font-bold text-slate-400 uppercase">Sectors</span>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 p-5 border-b-4 border-b-red-500">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4 text-red-500">03. Absences</div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-black tracking-tighter text-red-600">{{ absentee_count }}</span>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 p-5 {% if unknown_rfids %}bg-red-50/50 animate-pulse{% endif %}">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">04. RFID Alerts</div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-black tracking-tighter {% if unknown_rfids %}text-red-600{% endif %}">{{ unknown_rfids|length }}</span>
+            <i class="bi bi-broadcast text-slate-300 text-lg"></i>
+        </div>
+    </div>
+
+    <div class="bg-white border border-slate-200 p-5">
+        <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-4">05. Invalid Room Entries</div>
+        <div class="flex items-baseline gap-2">
+            <span class="text-4xl font-black tracking-tighter {% if inappropriate_entries %}text-red-600{% else %}text-green-600{% endif %}">
+                {{ inappropriate_entries|length }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- BLOCK VISUALIZATION -->
+    <div class="lg:col-span-2 bg-slate-50 border border-slate-200 rounded-sm p-8">
+        <div class="flex justify-between items-center mb-10">
+            <div>
+                <h2 class="text-sm font-black uppercase tracking-widest text-slate-900">Block Visualization</h2>
+                <!-- <p class="text-[10px] text-slate-500 font-mono mt-1">REAL_TIME_LOCATION_SERVICES</p> -->
+            </div>
+            <div class="px-3 py-1 bg-white border border-slate-300 text-[9px] font-bold uppercase tracking-tighter">Live Feed</div>
+        </div>
+
+        {% if blocks %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border border-slate-200">
+          {% for block in blocks %}
+          <div onclick="openModal('{{block.location_name}}','{{block.room_no}}',{{block.count}})"
+               class="bg-white p-6 hover:bg-slate-900 hover:text-white transition-all cursor-pointer group">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest group-hover:text-blue-400">{{ block.location_name }}</p>
+                    <p class="text-lg font-black tracking-tighter">RM_{{ block.room_no }}</p>
+                </div>
+                <div class="text-2xl font-light font-mono opacity-30">{{ loop.index0 + 1 }}</div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex-1 h-[2px] bg-slate-100 overflow-hidden">
+                    <div class="h-full bg-blue-600 group-hover:bg-blue-400" style="width: calc({{ block.count }} * 10%)"></div>
+                </div>
+                <span class="text-xs font-black font-mono">{{ block.count }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="py-20 text-center bg-white border border-dashed border-slate-300">
+            <p class="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">No telemetry data detected</p>
+        </div>
+        {% endif %}
+    </div>
+
+<!-- PAYROLL -->
+<div class="bg-white border p-8 mb-12">
+  <h2 class="text-sm font-black uppercase tracking-widest text-slate-900">Payroll Distribution</h2>
+  <div class="h-[300px]">
+    <canvas id="payrollChart"></canvas>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="fixed inset-0 bg-black/40 hidden z-50 flex items-center justify-center">
+  <div class="bg-white w-full max-w-lg border shadow-xl">
+    <div class="flex justify-between items-center p-4 border-b">
+      <h3 id="modalTitle" class="font-black uppercase text-sm tracking-widest"></h3>
+      <button onclick="closeModal()">✕</button>
+    </div>
+    <div id="modalBody" class="p-6"></div>
+  </div>
+</div>
+
+<!-- recent attendance sync block  -->
+<div class="bg-white border border-slate-200 mb-12">
+    <div class="p-8 border-b border-slate-100 flex justify-between items-center">
+        <h2 class="text-sm font-black uppercase tracking-widest">Recent Attendance Sync</h2>
+        <button class="text-[10px] font-bold uppercase text-blue-600 hover:underline" onclick="justForFun()">Export CSV</button>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left">
+            <thead class="bg-slate-50 border-b border-slate-100">
+                <tr class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    <th class="px-8 py-4">Full Name</th>
+                    <th class="px-8 py-4">Functional Department</th>
+                    <th class="px-8 py-4 text-right">Utility Hours</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-50">
+                {% for emp in employees %}
+                <tr class="hover:bg-blue-50/30 transition-colors">
+                    <td class="px-8 py-5">
+                        <div class="text-sm font-bold text-slate-900">{{ emp.name }}</div>
+                        <div class="text-[9px] font-mono text-slate-400 uppercase">EID_{{ emp.employee_id }}</div>
+                    </td>
+                    <td class="px-8 py-5">
+                        <span class="px-2 py-1 bg-slate-100 text-[10px] font-bold uppercase tracking-tighter text-slate-600">
+                            {{ emp.department }}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5 text-right font-mono text-sm font-black text-blue-600">
+                        {{ emp.total_hours|default('0.00') }} <span class="text-[10px] text-slate-400">HRS</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<!-- remove employee block -->
+<div class="bg-red-50/50 border border-red-200 p-8 flex flex-col md:flex-row justify-between items-center gap-6">
+    <div>
+        <h3 class="text-sm font-black uppercase tracking-widest text-red-600">De-Activate Account</h3>
+        <p class="text-xs text-red-500/70 font-medium">Permanently revoke employee access and clear telemetry logs.</p>
+    </div>
+    <form method="post" action="/admin/remove_employee" data-confirm="Revoke Access?" class="flex w-full md:w-auto gap-px shadow-xl">
+        <input class="px-6 py-4 text-xs font-bold bg-white border-2 border-red-600 outline-none w-full md:w-64" 
+               name="employee_id" placeholder="EMPLOYEE_ID" required />
+        <button class="bg-red-600 text-white px-8 py-4 text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">
+            Remove
+        </button>
+    </form>
+</div>
+
+
+
+
+<!-- JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+function openModal(loc, room, count) {
+  document.getElementById("modalTitle").innerHTML =
+    `${loc} <span class="text-slate-400">///</span> ROOM ${room}
+     <span class="text-amber-500">[${count}]</span>`;
+
+  fetch(`/api/block_persons?location=${encodeURIComponent(loc)}&room=${encodeURIComponent(room)}`)
+    .then(r => r.json())
+    .then(data => {
+      let html = "";
+      if (!data.persons || data.persons.length === 0) {
+        html = "<p class='text-center font-bold text-slate-500'>Currently Vacant</p>";
+      } else {
+        html = "<div class='space-y-2'>";
+        data.persons.forEach((p, i) => {
+          html += `
+            <div class="flex items-center gap-3 p-3 bg-blue-50 border rounded">
+              <div class="w-8 h-8 bg-blue-600 text-white flex items-center justify-center text-xs font-black">
+                ${i + 1}
+              </div>
+              <div>
+                <div class="font-bold">${p.name}</div>
+                <div class="text-[10px] font-mono text-slate-400">EID_${p.employee_id}</div>
+              </div>
+            </div>`;
+        });
+        html += "</div>";
+      }
+      document.getElementById("modalBody").innerHTML = html;
+      document.getElementById("modal").classList.remove("hidden");
+    });
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.add("hidden");
+}
+
+// // Payroll chart
+// const labels = {{ payroll|map(attribute='name')|list|safe if payroll else [] }};
+// const values = {{ payroll|map(attribute='salary')|list|safe if payroll else [] }};
+
+// new Chart(document.getElementById('payrollChart'), {
+//   type: 'bar',
+//   data: {
+//     labels,
+//     datasets: [{ data: values, backgroundColor: '#2563eb' }]
+//   },
+//   options: {
+//     responsive: true,
+//     maintainAspectRatio: false,
+//     plugins: { legend: { display: false } }
+//   }
+// });
+</script>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const payrollData = {{ payroll | tojson | safe }};
+
+  if (!payrollData || payrollData.length === 0) {
+    console.warn("No payroll data available");
+    return;
+  }
+
+  const labels = payrollData.map(p => p.name);
+  const values = payrollData.map(p => p.net_salary);
+
+  const canvas = document.getElementById("payrollChart");
+  if (!canvas) return;
+
+  new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Net Salary",
+        data: values,
+        backgroundColor: "#2563eb"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+});
+
+function justForFun(){
+  window.alert("Buy me lava cake! 😋")
+}
+</script>
+
+
+{% endblock %}
